@@ -15,13 +15,6 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Live Sessions</h5>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
-                        <li class="breadcrumb-item active">Sessions</li>
-                    </ol>
-                </nav>
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div id="autoRefreshBar">

@@ -4,12 +4,6 @@
 <div class="row">
     <div class="col-sm-12 mb-3">
         <h5>Edit Worker: {{ $worker->name }}</h5>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('admin.isp.access.users.index') }}">Workers</a></li>
-                <li class="breadcrumb-item active">Edit</li>
-            </ol>
-        </nav>
     </div>
     <div class="col-md-7">
         <div class="card">

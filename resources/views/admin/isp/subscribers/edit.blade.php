@@ -7,14 +7,6 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Edit Subscriber: {{ $subscriber->name }}</h5>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.subscribers.index') }}">Subscribers</a></li>
-                        <li class="breadcrumb-item active">Edit</li>
-                    </ol>
-                </nav>
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('admin.isp.subscribers.show', $subscriber) }}" class="btn btn-outline-info">

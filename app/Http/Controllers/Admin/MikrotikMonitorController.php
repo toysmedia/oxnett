@@ -75,4 +75,26 @@ class MikrotikMonitorController extends Controller
             return response()->json(['online' => false, 'error' => $e->getMessage()]);
         }
     }
+
+    public function routerStatuses()
+    {
+        $statuses = Router::where('is_active', true)->get()->map(function ($router) {
+            $online = false;
+            try {
+                $this->api->init($router);
+                $online = $this->api->isOnline();
+            } catch (\Exception $e) {
+                // unreachable
+            }
+
+            return [
+                'id'     => $router->id,
+                'name'   => $router->name,
+                'wan_ip' => $router->wan_ip,
+                'online' => $online,
+            ];
+        });
+
+        return response()->json($statuses);
+    }
 }

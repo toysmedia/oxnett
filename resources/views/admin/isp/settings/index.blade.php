@@ -5,13 +5,6 @@
 <div class="row">
     <div class="col-sm-12 mb-3">
         <h5 class="mb-0">ISP Settings</h5>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
-                <li class="breadcrumb-item active">Settings</li>
-            </ol>
-        </nav>
     </div>
 
     @if(session('success'))

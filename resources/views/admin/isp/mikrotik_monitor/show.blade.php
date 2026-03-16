@@ -5,19 +5,24 @@
 .temp-green { color: #28a745; }
 .temp-yellow { color: #ffc107; }
 .temp-red { color: #dc3545; }
-.metric-card { border-left: 4px solid #007bff; }
+.metric-card { border-left: 4px solid #696cff; }
 </style>
 @endpush
 @section('content')
 <div class="row">
-    <div class="col-sm-12 mb-3">
-        <h5 class="mb-0">{{ $router->name }} — Live Monitor</h5>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('admin.isp.mikrotik_monitor.index') }}">Monitor</a></li>
-                <li class="breadcrumb-item active">{{ $router->name }}</li>
-            </ol>
-        </nav>
+    <div class="col-sm-12 mb-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bx bx-chip me-2"></i>{{ $router->name }} — Live Monitor</h5>
+        <a href="{{ route('admin.isp.mikrotik_monitor.index') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bx bx-arrow-back me-1"></i>Back
+        </a>
+    </div>
+
+    {{-- Offline alert banner (shown when router is down) --}}
+    <div class="col-12 mb-3 d-none" id="offlineBanner">
+        <div class="alert alert-danger d-flex align-items-center gap-2 mb-0">
+            <i class="bx bx-wifi-off bx-sm"></i>
+            <div><strong>Router Offline</strong> — {{ $router->name }} ({{ $router->wan_ip }}) is currently unreachable. Check your network connection.</div>
+        </div>
     </div>
 
     {{-- Status Bar --}}
@@ -38,7 +43,7 @@
 
     {{-- Health --}}
     <div class="col-md-3 mb-4">
-        <div class="card metric-card h-100" style="border-left-color:#28a745">
+        <div class="card metric-card h-100" style="border-left-color:#71dd37">
             <div class="card-header"><h6 class="mb-0"><i class="bx bx-heart-circle me-1"></i> Health</h6></div>
             <div class="card-body" id="healthInfo"><div class="text-muted">Loading...</div></div>
         </div>
@@ -46,7 +51,7 @@
 
     {{-- Active Users --}}
     <div class="col-md-3 mb-4">
-        <div class="card metric-card h-100" style="border-left-color:#fd7e14">
+        <div class="card metric-card h-100" style="border-left-color:#ffab00">
             <div class="card-header"><h6 class="mb-0"><i class="bx bx-group me-1"></i> Active Users</h6></div>
             <div class="card-body" id="usersInfo"><div class="text-muted">Loading...</div></div>
         </div>
@@ -55,7 +60,7 @@
     {{-- Interface Traffic --}}
     <div class="col-12 mb-4">
         <div class="card">
-            <div class="card-header"><h6 class="mb-0"><i class="bx bx-trending-up me-1"></i> Interface Traffic (auto-refresh every 10s)</h6></div>
+            <div class="card-header"><h6 class="mb-0"><i class="bx bx-trending-up me-1"></i> Interface Traffic <small class="text-muted">(auto-refresh every 10s)</small></h6></div>
             <div class="card-body">
                 <div id="interfaceList" class="row g-3"></div>
             </div>
@@ -92,11 +97,13 @@ function fetchData() {
         .then(r => r.json())
         .then(data => {
             if (!data.online) {
+                document.getElementById('offlineBanner').classList.remove('d-none');
                 document.getElementById('statusBar').className = 'alert alert-danger d-flex align-items-center gap-3';
-                document.getElementById('statusBar').innerHTML = '<i class="bx bx-wifi-off"></i> Router is offline or unreachable';
+                document.getElementById('statusBar').innerHTML = '<i class="bx bx-wifi-off bx-sm"></i> Router is offline or unreachable';
                 return;
             }
 
+            document.getElementById('offlineBanner').classList.add('d-none');
             document.getElementById('statusBar').className = 'alert alert-success d-flex align-items-center gap-3';
             document.getElementById('statusBar').innerHTML = '<i class="bx bx-wifi"></i> Online — Last updated: ' + new Date().toLocaleTimeString();
 
