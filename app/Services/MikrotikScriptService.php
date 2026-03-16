@@ -120,6 +120,20 @@ class MikrotikScriptService
         $L[] = "/ip hotspot add interface=\"{$customerIface}\" address-pool=hotspot-pool profile=\"hsprof-radius\" name=\"hotspot-server\" disabled=no";
         $L[] = '';
 
+        // ── Auto-Download Hotspot Files ───────────────────────────────────────
+        $hotspotBaseUrl = rtrim(config('app.url'), '/') . '/api/hotspot-files/' . $router->id;
+        $L[] = '# --- Auto-Download Hotspot Files ---';
+        $L[] = ":local hotspotBaseUrl \"{$hotspotBaseUrl}\"";
+        $L[] = ':do {';
+        $L[] = '    /tool fetch url=($hotspotBaseUrl . "/login.html") dst-path="hotspot/login.html"';
+        $L[] = '    /tool fetch url=($hotspotBaseUrl . "/alogin.html") dst-path="hotspot/alogin.html"';
+        $L[] = '    /tool fetch url=($hotspotBaseUrl . "/status.html") dst-path="hotspot/status.html"';
+        $L[] = '    :put "Hotspot HTML files downloaded successfully."';
+        $L[] = '} on-error={';
+        $L[] = '    :put "WARNING: Could not download hotspot files. Upload them manually."';
+        $L[] = '}';
+        $L[] = '';
+
         // ── Walled Garden ─────────────────────────────────────────────────────
         $L[] = '# --- Hotspot Walled Garden ---';
         $L[] = '/ip hotspot walled-garden remove [find]';

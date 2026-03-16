@@ -144,6 +144,35 @@ class RouterController extends Controller
         ]);
     }
 
+    public function serveHotspotFile(Router $router, string $file)
+    {
+        $allowedFiles = [
+            'login.html'  => 'hotspot.login',
+            'alogin.html' => 'hotspot.alogin',
+            'status.html' => 'hotspot.status',
+        ];
+
+        if (!array_key_exists($file, $allowedFiles)) {
+            abort(404);
+        }
+
+        $viewName = $allowedFiles[$file];
+
+        if (!view()->exists($viewName)) {
+            abort(404);
+        }
+
+        $parsedHost    = parse_url(config('app.url'), PHP_URL_HOST);
+        $billingDomain = $router->billing_domain ?: ($parsedHost ?: 'localhost');
+        $appName       = config('app.name', 'iNettotik');
+
+        return response(
+            view($viewName, compact('router', 'billingDomain', 'appName'))->render(),
+            200,
+            ['Content-Type' => 'text/html; charset=utf-8']
+        );
+    }
+
     public function downloadHotspotFiles(Router $router)
     {
         $tmpDir  = sys_get_temp_dir();

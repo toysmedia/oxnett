@@ -9,7 +9,7 @@
                 <h5 class="mb-0">PPPoE Subscribers</h5>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">Home</a></li>
                         <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
                         <li class="breadcrumb-item active">PPPoE Subscribers</li>
                     </ol>

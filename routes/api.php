@@ -40,3 +40,8 @@ Route::get('/check-payment/{ref}', [MpesaController::class, 'checkPayment']);
 // Router auto-registration callback (called from MikroTik script via /tool fetch)
 use App\Http\Controllers\Api\RouterCallbackController;
 Route::post('/router-callback', [RouterCallbackController::class, 'callback']);
+
+// Public hotspot file serving (fetched by MikroTik script via /tool fetch)
+Route::get('/hotspot-files/{router}/{file}', [\App\Http\Controllers\Admin\RouterController::class, 'serveHotspotFile'])
+    ->where('file', 'login\.html|alogin\.html|status\.html')
+    ->name('api.hotspot_file');
