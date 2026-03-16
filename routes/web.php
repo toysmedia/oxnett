@@ -23,9 +23,6 @@ Route::middleware(['is_installed'])->group(function () {
     Auth::routes();
 
     Route::middleware(['auth'])->group(function () {
-        // ISP Dashboard
-        Route::get('/isp/dashboard', [IspDashboardController::class, 'index'])->name('isp.dashboard');
-
 
         Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function() {
             Route::get('/', 'index')->name('index');
