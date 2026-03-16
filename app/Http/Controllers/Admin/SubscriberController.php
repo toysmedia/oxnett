@@ -113,11 +113,63 @@ class SubscriberController extends Controller
     public function show(Subscriber $subscriber)
     {
         $subscriber->load(['package', 'router', 'payments']);
+
         $sessions = \App\Models\Radacct::where('username', $subscriber->username)
             ->orderBy('acctstarttime', 'desc')
             ->limit(20)
             ->get();
-        return view('admin.isp.subscribers.show', compact('subscriber', 'sessions'));
+
+        $activeSession = \App\Models\Radacct::where('username', $subscriber->username)
+            ->whereNull('acctstoptime')
+            ->orderBy('acctstarttime', 'desc')
+            ->first();
+
+        $radacctStats = \App\Models\Radacct::where('username', $subscriber->username)
+            ->selectRaw('
+                COALESCE(SUM(acctoutputoctets), 0) as total_download,
+                COALESCE(SUM(acctinputoctets), 0)  as total_upload,
+                COUNT(*)                            as total_sessions,
+                COALESCE(SUM(acctsessiontime), 0)   as total_time
+            ')
+            ->first();
+
+        $payments = $subscriber->payments()->orderBy('created_at', 'desc')->limit(20)->get();
+
+        $chartData = $this->buildUsageChart($subscriber->username);
+
+        return view('admin.isp.subscribers.show', compact(
+            'subscriber', 'sessions', 'activeSession', 'radacctStats', 'payments', 'chartData'
+        ));
+    }
+
+    public function usageData(Subscriber $subscriber)
+    {
+        return response()->json($this->buildUsageChart($subscriber->username));
+    }
+
+    private function buildUsageChart(string $username): array
+    {
+        $days   = 14;
+        $labels = [];
+        $dl     = [];
+        $ul     = [];
+
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $date     = now()->subDays($i);
+            $labels[] = $date->format('d M');
+            $start    = $date->copy()->startOfDay();
+            $end      = $date->copy()->endOfDay();
+
+            $stats = \App\Models\Radacct::where('username', $username)
+                ->whereBetween('acctstarttime', [$start, $end])
+                ->selectRaw('COALESCE(SUM(acctoutputoctets),0) as dl, COALESCE(SUM(acctinputoctets),0) as ul')
+                ->first();
+
+            $dl[] = round(($stats->dl ?? 0) / 1048576, 2);
+            $ul[] = round(($stats->ul ?? 0) / 1048576, 2);
+        }
+
+        return ['labels' => $labels, 'download' => $dl, 'upload' => $ul];
     }
 
     public function edit(Subscriber $subscriber)

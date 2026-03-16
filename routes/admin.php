@@ -73,11 +73,14 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
             Route::get('/', 'index')->name('index');
             Route::get('/create', 'create')->name('create');
             Route::post('/', 'store')->name('store');
+            Route::get('/pppoe', 'pppoe')->name('pppoe');
+            Route::get('/hotspot', 'hotspot')->name('hotspot');
+            Route::post('/bulk', 'bulkAction')->name('bulk');
             Route::get('/{subscriber}', 'show')->name('show');
             Route::get('/{subscriber}/edit', 'edit')->name('edit');
             Route::put('/{subscriber}', 'update')->name('update');
             Route::delete('/{subscriber}', 'destroy')->name('destroy');
-            Route::post('/bulk', 'bulkAction')->name('bulk');
+            Route::get('/{subscriber}/usage-data', 'usageData')->name('usage_data');
         });
 
         // Live Sessions
@@ -164,11 +167,6 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
             Route::put('/{expenseCategory}', 'update')->name('update');
             Route::delete('/{expenseCategory}', 'destroy')->name('destroy');
         });
-
-        // Subscriber PPPoE/Hotspot filtered views + usage data
-        Route::get('/isp/subscribers/pppoe', [\App\Http\Controllers\Admin\SubscriberController::class, 'pppoe'])->name('isp.subscribers.pppoe');
-        Route::get('/isp/subscribers/hotspot', [\App\Http\Controllers\Admin\SubscriberController::class, 'hotspot'])->name('isp.subscribers.hotspot');
-        Route::get('/isp/subscribers/{subscriber}/usage-data', [\App\Http\Controllers\Admin\SubscriberController::class, 'usageData'])->name('isp.subscribers.usage_data');
 
         // Access Control - Roles
         Route::prefix('isp/access/roles')->name('isp.access.roles.')->controller(\App\Http\Controllers\Admin\RoleController::class)->group(function () {
