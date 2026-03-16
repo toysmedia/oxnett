@@ -25,6 +25,15 @@
         <!-- /Search -->
 
         <ul class="navbar-nav flex-row align-items-center ms-auto">
+            <!-- Router Status Indicator -->
+            <li class="nav-item me-2 d-none d-md-flex">
+                <a href="{{ route('admin.isp.mikrotik_monitor.index') }}" id="navRouterStatus" title="MikroTik Router Status">
+                    <span id="navRouterStatusDot"></span>
+                    <span id="navRouterStatusText">Routers</span>
+                </a>
+            </li>
+            <!-- /Router Status Indicator -->
+
             <!-- Place this tag where you want the button to render. -->
             <!-- User -->
             <li class="nav-item navbar-dropdown dropdown-user dropdown">
@@ -83,5 +92,45 @@
             const users = @json(get_usernames());
             var data = [];for(const s in users)users.hasOwnProperty(s)&&data.push({value:users[s],url:window.BASE_URL+"/admin/users/"+s});function displaySuggestions(s){const e=$("#suggestions");e.empty(),0!==s.length?(s.forEach((s=>{e.append(`<div class="suggestion-item" data-url="${s.url}">${s.value}</div>`)})),e.show()):e.hide()}$("#navUserSearch").on("input",(function(){const s=$(this).val().toLowerCase();displaySuggestions(data.filter((e=>e.value.toLowerCase().includes(s))))})),$("#suggestions").on("click",".suggestion-item",(function(){const s=$(this).data("url");window.location.href=s})),$(document).click((function(s){$(s.target).closest("#navUserSearch, #suggestions").length||$("#suggestions").hide()}));
         });
+    </script>
+    <script>
+        (function () {
+            var statusUrl = '{{ route("admin.routers.status") }}';
+            var dot  = document.getElementById('navRouterStatusDot');
+            var text = document.getElementById('navRouterStatusText');
+
+            function poll() {
+                fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (routers) {
+                        if (!routers || routers.length === 0) {
+                            dot.className  = '';
+                            text.textContent = 'No Routers';
+                            return;
+                        }
+                        var total   = routers.length;
+                        var online  = routers.filter(function (r) { return r.online; }).length;
+                        var offline = total - online;
+
+                        if (offline === 0) {
+                            dot.className    = 'online';
+                            text.textContent = online + ' Online';
+                        } else if (online === 0) {
+                            dot.className    = 'offline';
+                            text.textContent = 'All Offline';
+                        } else {
+                            dot.className    = 'partial';
+                            text.textContent = online + '/' + total + ' Online';
+                        }
+                    })
+                    .catch(function () {
+                        dot.className    = 'offline';
+                        text.textContent = 'Status Error';
+                    });
+            }
+
+            poll();
+            setInterval(poll, 10000);
+        })();
     </script>
 @endpush

@@ -204,6 +204,9 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
             Route::get('/{router}/data', 'getData')->name('data');
         });
 
+        // Global router status API (used by navbar polling)
+        Route::get('routers/status', [\App\Http\Controllers\Admin\MikrotikMonitorController::class, 'routerStatuses'])->name('routers.status');
+
     });
 
 });

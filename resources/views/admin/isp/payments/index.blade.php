@@ -7,13 +7,6 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Payments</h5>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
-                        <li class="breadcrumb-item active">Payments</li>
-                    </ol>
-                </nav>
             </div>
             <a href="{{ route('admin.isp.payments.export') }}?{{ http_build_query(request()->all()) }}" class="btn btn-outline-success">
                 <i class="bx bx-download me-1"></i> Export CSV

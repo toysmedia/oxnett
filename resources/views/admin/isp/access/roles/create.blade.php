@@ -4,12 +4,6 @@
 <div class="row">
     <div class="col-sm-12 mb-3">
         <h5>Create Role</h5>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('admin.isp.access.roles.index') }}">Roles</a></li>
-                <li class="breadcrumb-item active">Create</li>
-            </ol>
-        </nav>
     </div>
     <div class="col-12">
         <div class="card">

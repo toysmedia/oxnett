@@ -6,14 +6,27 @@
 <style>
     .stat-card { border-left: 4px solid; transition: transform .15s; }
     .stat-card:hover { transform: translateY(-2px); }
-    .stat-card.green   { border-left-color: #71dd37; }
+    .stat-card.primary { border-left-color: #696cff; }
     .stat-card.blue    { border-left-color: #03c3ec; }
-    .stat-card.purple  { border-left-color: #696cff; }
+    .stat-card.green   { border-left-color: #71dd37; }
+    .stat-card.orange  { border-left-color: #ffab00; }
+    .stat-card.purple  { border-left-color: #8c57ff; }
+    .stat-card.pink    { border-left-color: #e83e8c; }
+    .stat-card.indigo  { border-left-color: #5f61e6; }
     .stat-card.teal    { border-left-color: #20c997; }
-    .stat-card.indigo  { border-left-color: #6366f1; }
-    .stat-card.orange  { border-left-color: #fd7e14; }
     .stat-card.red     { border-left-color: #ff3e1d; }
+    .stat-card.dark    { border-left-color: #233446; }
     .stat-icon { font-size: 2.2rem; opacity: .85; }
+    .icon-primary { color: #696cff; }
+    .icon-blue    { color: #03c3ec; }
+    .icon-green   { color: #71dd37; }
+    .icon-orange  { color: #ffab00; }
+    .icon-purple  { color: #8c57ff; }
+    .icon-pink    { color: #e83e8c; }
+    .icon-indigo  { color: #5f61e6; }
+    .icon-teal    { color: #20c997; }
+    .icon-red     { color: #ff3e1d; }
+    .icon-dark    { color: #233446; }
 </style>
 @endpush
 
@@ -21,24 +34,18 @@
 <div class="row">
     <div class="col-sm-12 mb-3">
         <h5 class="mb-0">ISP Dashboard</h5>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                <li class="breadcrumb-item active">ISP Dashboard</li>
-            </ol>
-        </nav>
     </div>
 
     {{-- ========== 9 STAT CARDS ========== --}}
     {{-- 1: Active PPPoE --}}
     <div class="col-xl-4 col-md-6 col-12 mb-4">
-        <div class="card h-100 stat-card green">
+        <div class="card h-100 stat-card primary">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <p class="mb-1 text-muted small">Active PPPoE Users</p>
                     <h4 class="mb-0 fw-bold">{{ $activePppoeUsers }}</h4>
                 </div>
-                <div class="text-success stat-icon"><i class="bx bx-user"></i></div>
+                <div class="stat-icon icon-primary"><i class="bx bx-user"></i></div>
             </div>
         </div>
     </div>
@@ -51,7 +58,7 @@
                     <p class="mb-1 text-muted small">Active Hotspot Users</p>
                     <h4 class="mb-0 fw-bold">{{ $activeHotspotUsers }}</h4>
                 </div>
-                <div class="text-info stat-icon"><i class="bx bx-wifi"></i></div>
+                <div class="stat-icon icon-blue"><i class="bx bx-wifi"></i></div>
             </div>
         </div>
     </div>
@@ -64,20 +71,20 @@
                     <p class="mb-1 text-muted small">Today's Revenue (PPPoE)</p>
                     <h4 class="mb-0 fw-bold">KES {{ number_format($todayRevenuePppoe, 2) }}</h4>
                 </div>
-                <div class="text-success stat-icon"><i class="bx bx-money"></i></div>
+                <div class="stat-icon icon-green"><i class="bx bx-money"></i></div>
             </div>
         </div>
     </div>
 
     {{-- 4: Today Hotspot Revenue --}}
     <div class="col-xl-4 col-md-6 col-12 mb-4">
-        <div class="card h-100 stat-card blue">
+        <div class="card h-100 stat-card orange">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <p class="mb-1 text-muted small">Today's Revenue (Hotspot)</p>
                     <h4 class="mb-0 fw-bold">KES {{ number_format($todayRevenueHotspot, 2) }}</h4>
                 </div>
-                <div class="text-info stat-icon"><i class="bx bx-money"></i></div>
+                <div class="stat-icon icon-orange"><i class="bx bx-money"></i></div>
             </div>
         </div>
     </div>
@@ -90,20 +97,20 @@
                     <p class="mb-1 text-muted small">Total Revenue This Month</p>
                     <h4 class="mb-0 fw-bold">KES {{ number_format($totalRevenueMonth, 2) }}</h4>
                 </div>
-                <div class="text-primary stat-icon"><i class="bx bx-bar-chart"></i></div>
+                <div class="stat-icon icon-purple"><i class="bx bx-bar-chart"></i></div>
             </div>
         </div>
     </div>
 
     {{-- 6: New PPPoE Today --}}
     <div class="col-xl-4 col-md-6 col-12 mb-4">
-        <div class="card h-100 stat-card teal">
+        <div class="card h-100 stat-card pink">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <p class="mb-1 text-muted small">New PPPoE Customers Today</p>
                     <h4 class="mb-0 fw-bold">{{ $newPppoeToday }}</h4>
                 </div>
-                <div class="text-success stat-icon"><i class="bx bx-user-plus"></i></div>
+                <div class="stat-icon icon-pink"><i class="bx bx-user-plus"></i></div>
             </div>
         </div>
     </div>
@@ -116,20 +123,20 @@
                     <p class="mb-1 text-muted small">Total PPPoE Customers</p>
                     <h4 class="mb-0 fw-bold">{{ $totalPppoeCustomers }}</h4>
                 </div>
-                <div class="text-primary stat-icon"><i class="bx bx-group"></i></div>
+                <div class="stat-icon icon-indigo"><i class="bx bx-group"></i></div>
             </div>
         </div>
     </div>
 
     {{-- 8: Total Hotspot --}}
     <div class="col-xl-4 col-md-6 col-12 mb-4">
-        <div class="card h-100 stat-card orange">
+        <div class="card h-100 stat-card teal">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <p class="mb-1 text-muted small">Total Hotspot Customers</p>
                     <h4 class="mb-0 fw-bold">{{ $totalHotspotCustomers }}</h4>
                 </div>
-                <div class="text-warning stat-icon"><i class="bx bx-wifi-2"></i></div>
+                <div class="stat-icon icon-teal"><i class="bx bx-wifi-2"></i></div>
             </div>
         </div>
     </div>
@@ -142,20 +149,20 @@
                     <p class="mb-1 text-muted small">PPPoE Expiring Today</p>
                     <h4 class="mb-0 fw-bold {{ $pppoeExpiringToday > 0 ? 'text-danger' : '' }}">{{ $pppoeExpiringToday }}</h4>
                 </div>
-                <div class="text-danger stat-icon"><i class="bx bx-time"></i></div>
+                <div class="stat-icon icon-red"><i class="bx bx-time"></i></div>
             </div>
         </div>
     </div>
 
     {{-- 10: Total Expenses This Month --}}
     <div class="col-xl-4 col-md-6 col-12 mb-4">
-        <div class="card h-100 stat-card red">
+        <div class="card h-100 stat-card dark">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div>
                     <p class="mb-1 text-muted small">Expenses This Month</p>
                     <h4 class="mb-0 fw-bold text-danger">KES {{ number_format($totalExpensesMonth, 0) }}</h4>
                 </div>
-                <div class="text-danger stat-icon"><i class="bx bx-wallet-alt"></i></div>
+                <div class="stat-icon icon-dark"><i class="bx bx-wallet-alt"></i></div>
             </div>
         </div>
     </div>

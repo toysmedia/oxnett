@@ -20,13 +20,6 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Hotspot e-Receipts</h5>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
-                        <li class="breadcrumb-item active">e-Receipts</li>
-                    </ol>
-                </nav>
             </div>
             <span id="autoRefreshIndicator"><i class="bx bx-refresh me-1"></i>Auto-refresh every 15s</span>
         </div>

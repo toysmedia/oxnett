@@ -7,13 +7,6 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Hotspot Subscribers</h5>
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('admin.isp.dashboard') }}">ISP</a></li>
-                        <li class="breadcrumb-item active">Hotspot Subscribers</li>
-                    </ol>
-                </nav>
             </div>
             <a href="{{ route('admin.isp.subscribers.create') }}" class="btn btn-primary">
                 <i class="bx bx-plus me-1"></i> Add Hotspot Subscriber
