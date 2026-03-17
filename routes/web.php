@@ -70,7 +70,7 @@ Route::middleware(['is_installed'])->group(function () {
 
     // Public buy page
     Route::get('/buy', [BuyController::class, 'index'])->name('customer.buy');
-    Route::post('/buy/pay', [BuyController::class, 'pay'])->name('customer.buy.pay');
+    Route::middleware('throttle:10,1')->post('/buy/pay', [BuyController::class, 'pay'])->name('customer.buy.pay');
 
     // Customer portal (auth required)
     Route::middleware(['auth'])->prefix('customer')->name('customer.')->group(function () {

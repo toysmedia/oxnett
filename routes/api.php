@@ -22,7 +22,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // M-Pesa Webhooks (no CSRF, no auth required — called by Safaricom servers)
-Route::middleware('throttle:60,1')->group(function () {
+Route::middleware(['throttle:60,1', 'verify_mpesa_ip'])->group(function () {
     Route::post('/mpesa/stk-callback', [MpesaController::class, 'stkCallback']);
     Route::post('/mpesa/c2b-validation', [MpesaController::class, 'c2bValidation']);
     Route::post('/mpesa/c2b-confirmation', [MpesaController::class, 'c2bConfirmation']);

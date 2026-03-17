@@ -118,6 +118,12 @@ class MpesaService
             return null;
         }
 
+        // Idempotency: skip re-processing already completed payments
+        if ($payment->status === 'completed') {
+            Log::info('M-Pesa STK Callback: payment already completed, skipping.', ['checkout_request_id' => $checkoutRequestId]);
+            return $payment;
+        }
+
         if ($resultCode == 0) {
             // Payment successful
             $items = collect($body['CallbackMetadata']['Item'] ?? []);
@@ -165,6 +171,13 @@ class MpesaService
 
         if (!$transId) {
             return null;
+        }
+
+        // Idempotency: return existing record if this TransID was already processed
+        $existing = MpesaPayment::where('mpesa_receipt_number', $transId)->first();
+        if ($existing) {
+            Log::info('M-Pesa C2B Confirmation: duplicate TransID, returning existing record.', ['trans_id' => $transId]);
+            return $existing;
         }
 
         // Find matching package by bill reference or amount

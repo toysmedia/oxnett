@@ -20,7 +20,7 @@ class ActivateVoucherController extends Controller
 
         $ref = strtoupper(trim($data['ref']));
 
-        // Check if voucher exists in RADIUS
+        // Check if voucher already exists in RADIUS (re-activation is allowed)
         $exists = Radcheck::where('username', $ref)
             ->where('attribute', 'Cleartext-Password')
             ->exists();
@@ -44,6 +44,11 @@ class ActivateVoucherController extends Controller
             if ($payment->isp_package_id) {
                 $radius = app(\App\Services\RadiusService::class);
                 $radius->provisionHotspotVoucher($ref, $payment->package);
+            }
+
+            // Track first activation time
+            if (is_null($payment->used_at)) {
+                $payment->update(['used_at' => now()]);
             }
 
             return response()->json([
