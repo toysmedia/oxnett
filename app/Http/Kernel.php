@@ -70,6 +70,7 @@ class Kernel extends HttpKernel
         'is_installed' => \App\Http\Middleware\IsInstalled::class,
         'not_installed' => \App\Http\Middleware\NotInstalled::class,
         'verify_router_secret' => \App\Http\Middleware\VerifyRouterSecret::class,
+        'verify_mpesa_ip'      => \App\Http\Middleware\VerifyMpesaIp::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'reseller' => \App\Http\Middleware\ResellerMiddleware::class,
         'permission' => \App\Http\Middleware\CheckPermission::class,

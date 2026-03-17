@@ -306,6 +306,11 @@ class MikrotikScriptService
         $L[] = '    comment="iNettotik: auto-fetch and apply latest config from billing server"';
         $L[] = '';
 
+        $L[] = '# --- Weekly Config Backup ---';
+        $L[] = '/system scheduler remove [find name="iNettotik-WeeklyBackup"]';
+        $L[] = '/system scheduler add name="iNettotik-WeeklyBackup" interval=7d start-time=04:00:00 on-event="/system backup save name=auto-backup dont-encrypt=no" comment="iNettotik: weekly config backup"';
+        $L[] = '';
+
         $L = array_merge($L, $this->buildPhaseCallback(3, $ctx));
 
         $L[] = ':put "=============================================="';
@@ -390,6 +395,10 @@ class MikrotikScriptService
             "/interface vlan add name=\"vlan10-pppoe\" vlan-id=10 interface=\"{$ctx['customerIface']}\" comment=\"PPPoE Subscribers\"",
             '/interface vlan remove [find name="vlan20-hotspot"]',
             "/interface vlan add name=\"vlan20-hotspot\" vlan-id=20 interface=\"{$ctx['customerIface']}\" comment=\"Hotspot Subscribers\"",
+            '',
+            '# --- Bridge VLAN Filtering (vlan-mode=secure prevents inter-VLAN leakage) ---',
+            "/interface bridge set [find name=\"{$ctx['customerIface']}\"] vlan-filtering=yes",
+            "/interface bridge port set [find bridge=\"{$ctx['customerIface']}\"] frame-types=admit-only-vlan-tagged",
             '',
         ];
     }

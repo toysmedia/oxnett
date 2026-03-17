@@ -12,4 +12,5 @@ return [
     'base_url' => env('MPESA_ENV', 'sandbox') === 'production'
         ? 'https://api.safaricom.co.ke'
         : 'https://sandbox.safaricom.co.ke',
+    'verify_ip' => env('MPESA_VERIFY_IP', true),
 ];

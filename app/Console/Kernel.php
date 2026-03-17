@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('app:expire-users')->everyMinute();
         $schedule->command('app:daily-backup')->dailyAt('02:00');
+        $schedule->command('app:backup-database')->dailyAt('02:00');
         $schedule->command('app:sync-nas')->hourly();
     }
 
