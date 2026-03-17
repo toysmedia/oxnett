@@ -82,7 +82,7 @@ class MikrotikScriptService
      */
     protected function sanitizeForRos(string $value): string
     {
-        return preg_replace('/[^a-zA-Z0-9._:\-\/@ ]/', '', $value);
+        return preg_replace('/[^a-zA-Z0-9._:\- ]/', '', $value);
     }
 
     // ── Context builder ────────────────────────────────────────────────────────
@@ -108,7 +108,9 @@ class MikrotikScriptService
         );
 
         $wanIface      = $this->sanitizeForRos($router->wan_interface      ?: (string)env('WAN_INTERFACE', 'ether1'));
+        $wanIface      = $wanIface ?: 'ether1'; // safety fallback — must never be empty
         $customerIface = $this->sanitizeForRos($router->customer_interface ?: 'bridge1');
+        $customerIface = $customerIface ?: 'bridge1'; // safety fallback
 
         $pppoePoolRange   = $this->sanitizeForRos($router->pppoe_pool_range   ?: '10.10.1.1-10.10.1.254');
         $hotspotPoolRange = $this->sanitizeForRos($router->hotspot_pool_range ?: '10.20.1.1-10.20.1.254');
@@ -118,6 +120,7 @@ class MikrotikScriptService
         $wgOctet            = (($router->id % 253) + 2);
         $wgRouterIp         = "10.255.255.{$wgOctet}/32";
         $wgServerIp         = '10.255.255.1/32';
+        $wgServerPingIp     = '10.255.255.1'; // WG server IP without subnet mask (used for ping)
         $wgSubnet           = '10.255.255.0/24';
         $wgAllowedAddresses = "{$wgServerIp},{$wgSubnet}";
 
@@ -134,7 +137,7 @@ class MikrotikScriptService
             'routerName', 'billingDomain',
             'wanIface', 'customerIface',
             'pppoePoolRange', 'hotspotPoolRange', 'radiusSecret',
-            'wgRouterIp', 'wgServerIp', 'wgSubnet', 'wgAllowedAddresses',
+            'wgRouterIp', 'wgServerIp', 'wgServerPingIp', 'wgSubnet', 'wgAllowedAddresses',
             'scriptFilename', 'mgmtIpList', 'hotspotBaseUrl'
         );
     }
@@ -558,7 +561,7 @@ class MikrotikScriptService
             '/system scheduler remove [find name="iNettotik-WG-Recovery"]',
             '/system scheduler add name="iNettotik-WG-Recovery" interval=10m \\',
             '    on-event={',
-            '        :if ([/ping 10.255.255.1 count=3] = 0) do={',
+            "        :if ([/ping {$ctx['wgServerPingIp']} count=3] = 0) do={",
             '            /interface wireguard disable [find name="wg-billing"]',
             '            :delay 5s',
             '            /interface wireguard enable [find name="wg-billing"]',

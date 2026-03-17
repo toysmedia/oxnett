@@ -105,14 +105,18 @@
                 </div>
 
                 {{-- Heartbeat status --}}
+                @php
+                    $hbAt = $router->last_heartbeat_at;
+                    $isOnline = $hbAt && $hbAt->diffInMinutes(now()) <= 10;
+                @endphp
                 <div class="d-flex align-items-center gap-2">
-                    <i class="bx bx-heart-circle fs-5 {{ $router->last_heartbeat_at && $router->last_heartbeat_at->diffInMinutes(now()) <= 10 ? 'text-success' : 'text-danger' }}"></i>
+                    <i class="bx bx-heart-circle fs-5 {{ $isOnline ? 'text-success' : 'text-danger' }}"></i>
                     <span class="small text-muted">Last heartbeat:</span>
-                    @if($router->last_heartbeat_at)
-                        <span class="small {{ $router->last_heartbeat_at->diffInMinutes(now()) <= 10 ? 'text-success' : 'text-danger' }}">
-                            {{ $router->last_heartbeat_at->diffForHumans() }}
+                    @if($hbAt)
+                        <span class="small {{ $isOnline ? 'text-success' : 'text-danger' }}">
+                            {{ $hbAt->diffForHumans() }}
                         </span>
-                        @if($router->last_heartbeat_at->diffInMinutes(now()) <= 10)
+                        @if($isOnline)
                             <span class="badge bg-success">Online</span>
                         @else
                             <span class="badge bg-danger">Stale</span>
