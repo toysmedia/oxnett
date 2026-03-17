@@ -22,6 +22,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \App\Http\Middleware\ForceHttps::class,
+        \App\Http\Middleware\SecurityHeaders::class,
     ];
 
     /**
@@ -67,6 +68,8 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'force_ajax'=> \App\Http\Middleware\ForceAjax::class,
         'is_installed' => \App\Http\Middleware\IsInstalled::class,
+        'not_installed' => \App\Http\Middleware\NotInstalled::class,
+        'verify_router_secret' => \App\Http\Middleware\VerifyRouterSecret::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'reseller' => \App\Http\Middleware\ResellerMiddleware::class,
         'permission' => \App\Http\Middleware\CheckPermission::class,
