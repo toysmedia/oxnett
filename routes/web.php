@@ -53,7 +53,7 @@ Route::middleware(['is_installed'])->group(function () {
     Route::prefix('common')->name('common.')->controller(CommonController::class)->group(function() {
 
         //APIs
-        Route::middleware('force_ajax')->group(function () {
+        Route::middleware(['auth', 'force_ajax'])->group(function () {
             Route::get('/internet-speed/{user}/fetch', 'fetchInternetSpeed')->name('internet_speed');
             Route::post('/execute-cron', 'executeCron')->name('execute_cron');
             Route::get('/new-expire/{user}/{package}', 'getNewExpire')->name('new_expire');
@@ -82,7 +82,7 @@ Route::middleware(['is_installed'])->group(function () {
 });
 
 //Install Routes
-Route::prefix('install')->controller(GuestController::class)->group(function() {
+Route::prefix('install')->middleware('not_installed')->controller(GuestController::class)->group(function() {
     Route::get('/', 'showInstallForm')->name('install');
     Route::post('/', 'install');
 });

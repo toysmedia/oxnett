@@ -73,7 +73,11 @@ class MpesaController extends Controller
     public function stkCallback(Request $request): JsonResponse
     {
         $data = $request->all();
-        Log::info('M-Pesa STK Callback received', $data);
+        Log::info('M-Pesa STK Callback received', [
+            'MerchantRequestID' => $data['Body']['stkCallback']['MerchantRequestID'] ?? 'N/A',
+            'CheckoutRequestID' => $data['Body']['stkCallback']['CheckoutRequestID'] ?? 'N/A',
+            'ResultCode'        => $data['Body']['stkCallback']['ResultCode'] ?? 'N/A',
+        ]);
 
         try {
             $this->mpesa->handleCallback($data);
@@ -90,7 +94,11 @@ class MpesaController extends Controller
      */
     public function c2bValidation(Request $request): JsonResponse
     {
-        Log::info('M-Pesa C2B Validation', $request->all());
+        Log::info('M-Pesa C2B Validation', [
+            'TransID'      => $request->input('TransID', 'N/A'),
+            'TransAmount'  => $request->input('TransAmount', 'N/A'),
+            'BillRefNumber'=> $request->input('BillRefNumber', 'N/A'),
+        ]);
         // Accept all payments
         return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
     }
@@ -101,7 +109,11 @@ class MpesaController extends Controller
     public function c2bConfirmation(Request $request): JsonResponse
     {
         $data = $request->all();
-        Log::info('M-Pesa C2B Confirmation received', $data);
+        Log::info('M-Pesa C2B Confirmation received', [
+            'TransID'      => $data['TransID'] ?? 'N/A',
+            'TransAmount'  => $data['TransAmount'] ?? 'N/A',
+            'BillRefNumber'=> $data['BillRefNumber'] ?? 'N/A',
+        ]);
 
         try {
             $this->mpesa->handleC2BConfirmation($data);

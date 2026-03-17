@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use App\Models\Payment;
 use App\Observers\PaymentObserver;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +31,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         try {
             // Check if .env file exists
             if (!File::exists(base_path('.env'))) {

@@ -59,6 +59,8 @@ return [
 
     'asset_url' => env('ASSET_URL'),
 
+    'router_callback_secret' => env('ROUTER_CALLBACK_SECRET'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

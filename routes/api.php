@@ -21,25 +21,32 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// M-Pesa Webhooks (no CSRF, no auth required)
-Route::post('/mpesa/stk-push', [MpesaController::class, 'stkPush']);
-Route::post('/mpesa/stk-callback', [MpesaController::class, 'stkCallback']);
-Route::post('/mpesa/c2b-validation', [MpesaController::class, 'c2bValidation']);
-Route::post('/mpesa/c2b-confirmation', [MpesaController::class, 'c2bConfirmation']);
-Route::get('/mpesa/register-c2b', [MpesaController::class, 'registerC2BUrls']);
+// M-Pesa Webhooks (no CSRF, no auth required — called by Safaricom servers)
+Route::middleware('throttle:60,1')->group(function () {
+    Route::post('/mpesa/stk-callback', [MpesaController::class, 'stkCallback']);
+    Route::post('/mpesa/c2b-validation', [MpesaController::class, 'c2bValidation']);
+    Route::post('/mpesa/c2b-confirmation', [MpesaController::class, 'c2bConfirmation']);
+});
 
-// Voucher activation
-Route::post('/activate-mpesa-voucher', [ActivateVoucherController::class, 'activate']);
+// STK Push — rate limited to prevent abuse
+Route::middleware('throttle:10,1')->post('/mpesa/stk-push', [MpesaController::class, 'stkPush']);
+
+// Admin action — requires authentication
+Route::middleware('auth:sanctum')->get('/mpesa/register-c2b', [MpesaController::class, 'registerC2BUrls']);
+
+// Voucher activation — rate limited to prevent brute-force
+Route::middleware('throttle:10,1')->post('/activate-mpesa-voucher', [ActivateVoucherController::class, 'activate']);
 
 // Package listing
 Route::get('/packages', [ApiPackageController::class, 'index']);
 
-// Check payment status
-Route::get('/check-payment/{ref}', [MpesaController::class, 'checkPayment']);
+// Check payment status — rate limited to prevent enumeration
+Route::middleware('throttle:10,1')->get('/check-payment/{ref}', [MpesaController::class, 'checkPayment']);
 
 // Router auto-registration callback (called from MikroTik script via /tool fetch)
+// Protected by shared secret via verify_router_secret middleware
 use App\Http\Controllers\Api\RouterCallbackController;
-Route::post('/router-callback', [RouterCallbackController::class, 'callback']);
+Route::middleware('verify_router_secret')->post('/router-callback', [RouterCallbackController::class, 'callback']);
 
 // Public hotspot file serving (fetched by MikroTik script via /tool fetch)
 Route::get('/hotspot-files/{router}/{file}', [\App\Http\Controllers\Admin\RouterController::class, 'serveHotspotFile'])

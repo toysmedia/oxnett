@@ -61,6 +61,15 @@ class PaymentController extends Controller
 
     public function createPayment(Request $request, $gateway)
     {
+        $allowedGateways = ['bkash', 'stripe', 'offline', 'mpesa'];
+        if (!in_array($gateway, $allowedGateways)) {
+            return $this->errorResponse('Invalid payment gateway');
+        }
+
+        $request->validate([
+            'package_id' => 'required|exists:packages,id',
+        ]);
+
         $user_id = auth()->id();
         $package_id = $request->input('package_id');
         $package = Package::find($package_id);
@@ -91,6 +100,11 @@ class PaymentController extends Controller
 
     public function callbackPayment(Request $request, $gateway)
     {
+        $allowedGateways = ['bkash', 'stripe', 'offline', 'mpesa'];
+        if (!in_array($gateway, $allowedGateways)) {
+            return redirect()->route('payment.status')->with('error', 'Invalid payment gateway');
+        }
+
         try{
             DB::beginTransaction();
             $paymentGateway = PaymentService::initializeGateway($gateway);
@@ -98,7 +112,10 @@ class PaymentController extends Controller
             if(!$response) {
                 throw new \Exception('Payment failed');
             }
-            $payment = Payment::where($response['payment_id']);
+            $payment = Payment::find($response['payment_id']);
+            if (!$payment) {
+                throw new \Exception('Payment not found');
+            }
             if($payment->trx_id) {
                 throw new \Exception('Invalid request');
             }
