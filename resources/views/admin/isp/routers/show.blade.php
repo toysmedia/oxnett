@@ -28,6 +28,104 @@
         </div>
     </div>
 
+    {{-- Provision Progress --}}
+    <div class="col-sm-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bx bx-loader-circle me-1"></i> Provisioning Status</h6>
+                @php $phase = (int)($router->provision_phase ?? 0); @endphp
+                @if($phase === 0)
+                    <span class="badge bg-secondary">Not Provisioned</span>
+                @elseif($phase === 1)
+                    <span class="badge bg-warning text-dark">
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>Phase 1 — Connecting
+                    </span>
+                @elseif($phase === 2)
+                    <span class="badge bg-info text-dark">
+                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>Phase 2 — Configuring
+                    </span>
+                @else
+                    <span class="badge bg-success">✅ Fully Provisioned</span>
+                @endif
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    {{-- Phase 0 --}}
+                    <div class="col-sm-3">
+                        <div class="p-3 rounded border {{ $phase >= 0 ? 'border-secondary bg-light' : 'border-secondary' }} text-center">
+                            <div class="fs-4">⚙️</div>
+                            <div class="fw-semibold small mt-1">Phase 0</div>
+                            <div class="text-muted small">Not Provisioned</div>
+                            @if($phase === 0)
+                                <span class="badge bg-secondary mt-1">Current</span>
+                            @endif
+                        </div>
+                    </div>
+                    {{-- Phase 1 --}}
+                    <div class="col-sm-3">
+                        <div class="p-3 rounded border {{ $phase >= 1 ? 'border-warning bg-warning bg-opacity-10' : 'border-secondary opacity-50' }} text-center">
+                            <div class="fs-4">{{ $phase >= 1 ? '✅' : '⏳' }}</div>
+                            <div class="fw-semibold small mt-1">Phase 1</div>
+                            <div class="text-muted small">Connection</div>
+                            @if($phase === 1)
+                                <span class="badge bg-warning text-dark mt-1">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>Connecting
+                                </span>
+                            @elseif($phase > 1)
+                                <span class="badge bg-success mt-1">Connected</span>
+                            @endif
+                        </div>
+                    </div>
+                    {{-- Phase 2 --}}
+                    <div class="col-sm-3">
+                        <div class="p-3 rounded border {{ $phase >= 2 ? 'border-info bg-info bg-opacity-10' : 'border-secondary opacity-50' }} text-center">
+                            <div class="fs-4">{{ $phase >= 2 ? '✅' : '⏳' }}</div>
+                            <div class="fw-semibold small mt-1">Phase 2</div>
+                            <div class="text-muted small">Services</div>
+                            @if($phase === 2)
+                                <span class="badge bg-info text-dark mt-1">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>Configuring
+                                </span>
+                            @elseif($phase > 2)
+                                <span class="badge bg-success mt-1">Configured</span>
+                            @endif
+                        </div>
+                    </div>
+                    {{-- Phase 3 --}}
+                    <div class="col-sm-3">
+                        <div class="p-3 rounded border {{ $phase >= 3 ? 'border-success bg-success bg-opacity-10' : 'border-secondary opacity-50' }} text-center">
+                            <div class="fs-4">{{ $phase >= 3 ? '🔒' : '⏳' }}</div>
+                            <div class="fw-semibold small mt-1">Phase 3</div>
+                            <div class="text-muted small">Security</div>
+                            @if($phase >= 3)
+                                <span class="badge bg-success mt-1">Secured</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Heartbeat status --}}
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bx bx-heart-circle fs-5 {{ $router->last_heartbeat_at && $router->last_heartbeat_at->diffInMinutes(now()) <= 10 ? 'text-success' : 'text-danger' }}"></i>
+                    <span class="small text-muted">Last heartbeat:</span>
+                    @if($router->last_heartbeat_at)
+                        <span class="small {{ $router->last_heartbeat_at->diffInMinutes(now()) <= 10 ? 'text-success' : 'text-danger' }}">
+                            {{ $router->last_heartbeat_at->diffForHumans() }}
+                        </span>
+                        @if($router->last_heartbeat_at->diffInMinutes(now()) <= 10)
+                            <span class="badge bg-success">Online</span>
+                        @else
+                            <span class="badge bg-danger">Stale</span>
+                        @endif
+                    @else
+                        <span class="small text-muted">Never</span>
+                        <span class="badge bg-secondary">No heartbeat</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Router Details --}}
     <div class="col-sm-6 mb-4">
         <div class="card h-100">

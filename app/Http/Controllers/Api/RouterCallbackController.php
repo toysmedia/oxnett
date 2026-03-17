@@ -18,6 +18,7 @@ class RouterCallbackController extends Controller
             'vpn_ip'       => 'nullable|ip',
             'radius_secret' => 'nullable|string',
             'wg_public_key' => 'nullable|string|max:255',
+            'phase'        => 'nullable|integer|min:0|max:3',
         ]);
 
         // Find the router by name (sanitized the same way as in MikrotikScriptService)
@@ -27,14 +28,14 @@ class RouterCallbackController extends Controller
             ->first();
 
         if (!$router) {
-            Log::warning('Router callback: no matching router found', $data);
+            Log::warning('Router callback: no matching router found', ['router_name' => $data['router_name']]);
             return response()->json(['status' => 'error', 'message' => 'Router not found'], 404);
         }
 
         $old = $router->toArray();
 
         // Update router with detected IPs and WireGuard public key
-        $updates = [];
+        $updates = ['last_heartbeat_at' => now()];
         if (!empty($data['wan_ip'])) {
             $updates['wan_ip'] = $data['wan_ip'];
         }
@@ -44,10 +45,12 @@ class RouterCallbackController extends Controller
         if (!empty($data['wg_public_key'])) {
             $updates['wg_public_key'] = $data['wg_public_key'];
         }
-
-        if (!empty($updates)) {
-            $router->update($updates);
+        // Advance provision_phase only forward, never backward
+        if (!empty($data['phase']) && (int)$data['phase'] > (int)$router->provision_phase) {
+            $updates['provision_phase'] = (int)$data['phase'];
         }
+
+        $router->update($updates);
 
         // Sync NAS table for FreeRADIUS
         if ($router->wan_ip) {
@@ -65,16 +68,86 @@ class RouterCallbackController extends Controller
         AuditLog::record('router.callback', Router::class, $router->id, $old, $router->fresh()->toArray());
 
         Log::info('Router callback: updated successfully', [
-            'router_id' => $router->id,
-            'name'      => $router->name,
-            'wan_ip'    => $router->wan_ip,
-            'vpn_ip'    => $router->vpn_ip,
+            'router_id'       => $router->id,
+            'name'            => $router->name,
+            'wan_ip'          => $router->wan_ip,
+            'vpn_ip'          => $router->vpn_ip,
+            'provision_phase' => $router->provision_phase,
         ]);
 
         return response()->json([
-            'status'    => 'success',
-            'message'   => 'Router registered successfully',
+            'status'          => 'success',
+            'message'         => 'Router registered successfully',
+            'router_id'       => $router->id,
+            'provision_phase' => $router->provision_phase,
+        ]);
+    }
+
+    /**
+     * Heartbeat endpoint — called by MikroTik scheduler every 5 minutes.
+     */
+    public function heartbeat(Request $request)
+    {
+        $data = $request->validate([
+            'router_name' => 'required|string|max:100',
+            'vpn_ip'      => 'nullable|ip',
+        ]);
+
+        $sanitizedName = preg_replace('/[^a-zA-Z0-9\-]/', '-', $data['router_name']);
+        $router = Router::where('name', $data['router_name'])
+            ->orWhereRaw("REPLACE(REPLACE(name, ' ', '-'), '_', '-') = ?", [$sanitizedName])
+            ->first();
+
+        if (!$router) {
+            return response()->json(['status' => 'error', 'message' => 'Router not found'], 404);
+        }
+
+        $updates = ['last_heartbeat_at' => now()];
+        if (!empty($data['vpn_ip'])) {
+            $updates['vpn_ip'] = $data['vpn_ip'];
+        }
+        $router->update($updates);
+
+        return response()->json([
+            'status' => 'ok',
+            'phase'  => $router->provision_phase,
+        ]);
+    }
+
+    /**
+     * Phase-complete endpoint — called when each phase finishes.
+     */
+    public function phaseComplete(Request $request)
+    {
+        $data = $request->validate([
+            'router_name' => 'required|string|max:100',
+            'phase'       => 'required|integer|min:1|max:3',
+        ]);
+
+        $sanitizedName = preg_replace('/[^a-zA-Z0-9\-]/', '-', $data['router_name']);
+        $router = Router::where('name', $data['router_name'])
+            ->orWhereRaw("REPLACE(REPLACE(name, ' ', '-'), '_', '-') = ?", [$sanitizedName])
+            ->first();
+
+        if (!$router) {
+            return response()->json(['status' => 'error', 'message' => 'Router not found'], 404);
+        }
+
+        if ((int)$data['phase'] > (int)$router->provision_phase) {
+            $router->update([
+                'provision_phase'  => (int)$data['phase'],
+                'last_heartbeat_at' => now(),
+            ]);
+        }
+
+        Log::info('Router phase complete', [
             'router_id' => $router->id,
+            'phase'     => $data['phase'],
+        ]);
+
+        return response()->json([
+            'status' => 'ok',
+            'phase'  => $router->provision_phase,
         ]);
     }
 }

@@ -14,7 +14,7 @@ class MikrotikApiService
     public function init(Router $router): self
     {
         $this->router  = $router;
-        $ip            = $router->wan_ip ?? $router->vpn_ip ?? '127.0.0.1';
+        $ip            = $router->vpn_ip ?? throw new \RuntimeException('No VPN IP configured — refusing insecure WAN connection');
         $port          = $router->api_port ?? 80;
         $apiPass = '';
         if ($router->api_password) {

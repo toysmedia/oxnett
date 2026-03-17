@@ -47,6 +47,8 @@ Route::middleware('throttle:10,1')->get('/check-payment/{ref}', [MpesaController
 // Protected by shared secret via verify_router_secret middleware
 use App\Http\Controllers\Api\RouterCallbackController;
 Route::middleware('verify_router_secret')->post('/router-callback', [RouterCallbackController::class, 'callback']);
+Route::middleware('verify_router_secret')->post('/router-heartbeat', [RouterCallbackController::class, 'heartbeat']);
+Route::middleware('verify_router_secret')->post('/router-phase-complete', [RouterCallbackController::class, 'phaseComplete']);
 
 // Public hotspot file serving (fetched by MikroTik script via /tool fetch)
 Route::get('/hotspot-files/{router}/{file}', [\App\Http\Controllers\Admin\RouterController::class, 'serveHotspotFile'])

@@ -9,6 +9,10 @@ class Router extends Model
     use HasFactory;
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'last_heartbeat_at' => 'datetime',
+    ];
+
     public function subscribers()
     {
         return $this->hasMany(Subscriber::class, 'router_id');
