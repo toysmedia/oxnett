@@ -6,161 +6,476 @@ use App\Models\Router;
 
 class MikrotikScriptService
 {
+    // ── Public API ─────────────────────────────────────────────────────────────
+
+    /**
+     * Generate the full 3-phase script (backward-compatible entry point).
+     */
     public function generate(Router $router): string
+    {
+        $ctx = $this->buildContext($router);
+
+        $lines = array_merge(
+            $this->buildHeader($router, $ctx),
+            $this->buildVariables($ctx),
+            $this->generatePhase1Lines($router, $ctx),
+            $this->generatePhase2Lines($router, $ctx),
+            $this->generatePhase3Lines($router, $ctx)
+        );
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * Generate Phase 1 only — establish connection (identity + WireGuard + ether lockdown).
+     */
+    public function generatePhase1(Router $router): string
+    {
+        $ctx = $this->buildContext($router);
+
+        $lines = array_merge(
+            $this->buildHeader($router, $ctx, 1),
+            $this->buildVariables($ctx),
+            $this->generatePhase1Lines($router, $ctx)
+        );
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * Generate Phase 2 only — configure services (VLAN, RADIUS, PPPoE, Hotspot).
+     */
+    public function generatePhase2(Router $router): string
+    {
+        $ctx = $this->buildContext($router);
+
+        $lines = array_merge(
+            $this->buildHeader($router, $ctx, 2),
+            $this->buildVariables($ctx),
+            $this->generatePhase2Lines($router, $ctx)
+        );
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * Generate Phase 3 only — security hardening + heartbeat.
+     */
+    public function generatePhase3(Router $router): string
+    {
+        $ctx = $this->buildContext($router);
+
+        $lines = array_merge(
+            $this->buildHeader($router, $ctx, 3),
+            $this->buildVariables($ctx),
+            $this->generatePhase3Lines($router, $ctx)
+        );
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    // ── Sanitization ───────────────────────────────────────────────────────────
+
+    /**
+     * Strip characters that could break out of a RouterOS string literal or
+     * execute arbitrary commands. Keeps alphanumerics plus safe punctuation.
+     */
+    protected function sanitizeForRos(string $value): string
+    {
+        return preg_replace('/[^a-zA-Z0-9._:\- ]/', '', $value);
+    }
+
+    // ── Context builder ────────────────────────────────────────────────────────
+
+    protected function buildContext(Router $router): array
     {
         $billingServerIp  = $this->resolveRadiusIp();
         $billingPublicKey = $this->resolveWgPublicKey();
         $wgPort           = $this->resolveWgPort();
 
-        $callbackUrl  = rtrim(config('app.url'), '/') . '/api/router-callback';
-        $provisionUrl = rtrim(config('app.url'), '/') . '/admin/provision/' . $router->ref_code;
+        $callbackUrl      = rtrim(config('app.url'), '/') . '/api/router-callback';
+        $heartbeatUrl     = rtrim(config('app.url'), '/') . '/api/router-heartbeat';
+        $phaseCompleteUrl = rtrim(config('app.url'), '/') . '/api/router-phase-complete';
+        $provisionUrl     = rtrim(config('app.url'), '/') . '/admin/provision/' . $router->ref_code;
 
         $routerName = preg_replace('/[^a-zA-Z0-9\-]/', '-', (string) $router->name);
         $routerName = preg_replace('/-{2,}/', '-', $routerName);
         $routerName = trim($routerName, '-') ?: 'MikroTik-Router';
 
-        $billingDomain = $router->billing_domain
-            ?: env('BILLING_DOMAIN', parse_url(config('app.url'), PHP_URL_HOST) ?: 'billing.local');
+        $billingDomain = $this->sanitizeForRos(
+            $router->billing_domain
+                ?: (string)(env('BILLING_DOMAIN', parse_url(config('app.url'), PHP_URL_HOST) ?: 'billing.local'))
+        );
 
-        $wanIface      = $router->wan_interface      ?: env('WAN_INTERFACE', 'ether1');
-        $customerIface = $router->customer_interface ?: 'bridge1';
+        $wanIface      = $this->sanitizeForRos($router->wan_interface      ?: (string)env('WAN_INTERFACE', 'ether1'));
+        $wanIface      = $wanIface ?: 'ether1'; // safety fallback — must never be empty
+        $customerIface = $this->sanitizeForRos($router->customer_interface ?: 'bridge1');
+        $customerIface = $customerIface ?: 'bridge1'; // safety fallback
 
-        $pppoePoolRange   = $router->pppoe_pool_range   ?: '10.10.1.1-10.10.1.254';
-        $hotspotPoolRange = $router->hotspot_pool_range ?: '10.20.1.1-10.20.1.254';
+        $pppoePoolRange   = $this->sanitizeForRos($router->pppoe_pool_range   ?: '10.10.1.1-10.10.1.254');
+        $hotspotPoolRange = $this->sanitizeForRos($router->hotspot_pool_range ?: '10.20.1.1-10.20.1.254');
+
+        $radiusSecret = $this->sanitizeForRos((string) $router->radius_secret);
 
         $wgOctet            = (($router->id % 253) + 2);
         $wgRouterIp         = "10.255.255.{$wgOctet}/32";
         $wgServerIp         = '10.255.255.1/32';
+        $wgServerPingIp     = '10.255.255.1'; // WG server IP without subnet mask (used for ping)
         $wgSubnet           = '10.255.255.0/24';
         $wgAllowedAddresses = "{$wgServerIp},{$wgSubnet}";
 
-        $radiusSecret   = (string) $router->radius_secret;
         $scriptFilename = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $router->name)) . '-mikrotik.rsc';
 
-        $mgmtIps    = env('MANAGEMENT_IPS', '192.168.88.1,10.0.0.1');
+        $mgmtIps    = (string)env('MANAGEMENT_IPS', '192.168.88.1,10.0.0.1');
         $mgmtIpList = array_values(array_filter(array_map('trim', explode(',', $mgmtIps))));
 
+        $hotspotBaseUrl = rtrim(config('app.url'), '/') . '/api/hotspot-files/' . $router->id;
+
+        return compact(
+            'billingServerIp', 'billingPublicKey', 'wgPort',
+            'callbackUrl', 'heartbeatUrl', 'phaseCompleteUrl', 'provisionUrl',
+            'routerName', 'billingDomain',
+            'wanIface', 'customerIface',
+            'pppoePoolRange', 'hotspotPoolRange', 'radiusSecret',
+            'wgRouterIp', 'wgServerIp', 'wgServerPingIp', 'wgSubnet', 'wgAllowedAddresses',
+            'scriptFilename', 'mgmtIpList', 'hotspotBaseUrl'
+        );
+    }
+
+    // ── Header & Variables ─────────────────────────────────────────────────────
+
+    protected function buildHeader(Router $router, array $ctx, ?int $phase = null): array
+    {
+        $phaseLabel = match ($phase) {
+            1 => ' — Phase 1: Establish Connection',
+            2 => ' — Phase 2: Configure Services',
+            3 => ' — Phase 3: Security Hardening',
+            default => '',
+        };
+
+        return [
+            '# ============================================================',
+            '# iNettotik ISP Billing - Licensed Configuration',
+            "# MikroTik Configuration Script for: {$router->name}{$phaseLabel}",
+            '# Generated by iNettotik ISP Billing System',
+            '# Date: ' . now()->format('Y-m-d H:i:s'),
+            '#',
+            '# Bootstrap one-liner (run ONCE on a fresh router):',
+            "#   /tool fetch url=\"{$ctx['provisionUrl']}\" dst-path=\"{$ctx['scriptFilename']}\"",
+            "#   /import {$ctx['scriptFilename']}",
+            '# ============================================================',
+            '',
+        ];
+    }
+
+    protected function buildVariables(array $ctx): array
+    {
+        return [
+            '# --- Configuration Variables ---',
+            ":local routerName \"{$ctx['routerName']}\"",
+            ":local billingServerIP \"{$ctx['billingServerIp']}\"",
+            ":local wgRouterIP \"{$ctx['wgRouterIp']}\"",
+            ":local wgPort {$ctx['wgPort']}",
+            ":local billingPublicKey \"{$ctx['billingPublicKey']}\"",
+            ":local callbackURL \"{$ctx['callbackUrl']}\"",
+            ":local heartbeatURL \"{$ctx['heartbeatUrl']}\"",
+            ":local phaseCompleteURL \"{$ctx['phaseCompleteUrl']}\"",
+            ":local provisionURL \"{$ctx['provisionUrl']}\"",
+            ":local scriptFilename \"{$ctx['scriptFilename']}\"",
+            ":local radiusSecret \"{$ctx['radiusSecret']}\"",
+            ":local wanInterface \"{$ctx['wanIface']}\"",
+            ":local customerInterface \"{$ctx['customerIface']}\"",
+            ":local pppoePoolRange \"{$ctx['pppoePoolRange']}\"",
+            ":local hotspotPoolRange \"{$ctx['hotspotPoolRange']}\"",
+            ":local billingDomain \"{$ctx['billingDomain']}\"",
+            ':local wgSubnet "10.255.255.0/24"',
+            '',
+        ];
+    }
+
+    // ── Phase 1 lines ──────────────────────────────────────────────────────────
+
+    protected function generatePhase1Lines(Router $router, array $ctx): array
+    {
         $L = [];
 
-        // ── Header ────────────────────────────────────────────────────────────
         $L[] = '# ============================================================';
-        $L[] = "# MikroTik Configuration Script for: {$router->name}";
-        $L[] = '# Generated by iNettotik ISP Billing System';
-        $L[] = '# Date: ' . now()->format('Y-m-d H:i:s');
-        $L[] = '#';
-        $L[] = '# Bootstrap one-liner (run ONCE on a fresh router):';
-        $L[] = "#   /tool fetch url=\"{$provisionUrl}\" dst-path=\"{$scriptFilename}\"";
-        $L[] = "#   /import {$scriptFilename}";
+        $L[] = '# PHASE 1 — Establish Connection';
         $L[] = '# ============================================================';
         $L[] = '';
 
-        // ── Variables ─────────────────────────────────────────────────────────
-        $L[] = '# --- Configuration Variables ---';
-        $L[] = ":local routerName \"{$routerName}\"";
-        $L[] = ":local billingServerIP \"{$billingServerIp}\"";
-        $L[] = ":local wgRouterIP \"{$wgRouterIp}\"";
-        $L[] = ":local wgPort {$wgPort}";
-        $L[] = ":local billingPublicKey \"{$billingPublicKey}\"";
-        $L[] = ":local callbackURL \"{$callbackUrl}\"";
-        $L[] = ":local provisionURL \"{$provisionUrl}\"";
-        $L[] = ":local scriptFilename \"{$scriptFilename}\"";
-        $L[] = ":local radiusSecret \"{$radiusSecret}\"";
-        $L[] = ":local wanInterface \"{$wanIface}\"";
-        $L[] = ":local customerInterface \"{$customerIface}\"";
-        $L[] = ":local pppoePoolRange \"{$pppoePoolRange}\"";
-        $L[] = ":local hotspotPoolRange \"{$hotspotPoolRange}\"";
-        $L[] = ":local billingDomain \"{$billingDomain}\"";
-        $L[] = ':local wgSubnet "10.255.255.0/24"';
-        $L[] = '';
-
-        // ── System Identity ───────────────────────────────────────────────────
         $L[] = '# --- System Identity ---';
-        $L[] = "/system identity set name=\"{$routerName}\"";
+        $L[] = "/system identity set name=\"{$ctx['routerName']}\"";
         $L[] = '';
 
-        // ── Customer Bridge ───────────────────────────────────────────────────
+        $L = array_merge($L, $this->buildEtherLockdown($ctx));
+        $L = array_merge($L, $this->buildWireGuard($ctx));
+        $L = array_merge($L, $this->buildPhaseCallback(1, $ctx));
+
+        $L[] = ':put "Phase 1 complete — connection established."';
+        $L[] = '';
+
+        return $L;
+    }
+
+    // ── Phase 2 lines ──────────────────────────────────────────────────────────
+
+    protected function generatePhase2Lines(Router $router, array $ctx): array
+    {
+        $L = [];
+
+        $L[] = '# ============================================================';
+        $L[] = '# PHASE 2 — Configure Services';
+        $L[] = '# ============================================================';
+        $L[] = '';
+
         $L[] = '# --- Customer Interface (Bridge) ---';
-        $L[] = ":if ([:len [/interface bridge find name=\"{$customerIface}\"]] = 0) do={";
-        $L[] = "  /interface bridge add name=\"{$customerIface}\" comment=\"Customer Bridge - iNettotik\" disabled=no";
+        $L[] = ":if ([:len [/interface bridge find name=\"{$ctx['customerIface']}\"]] = 0) do={";
+        $L[] = "  /interface bridge add name=\"{$ctx['customerIface']}\" comment=\"Customer Bridge - iNettotik\" disabled=no";
         $L[] = '}';
         $L[] = '';
 
-        // ── RADIUS ────────────────────────────────────────────────────────────
-        $L[] = '# --- RADIUS Client ---';
-        $L[] = '/radius remove [find]';
-        $L[] = "/radius add address={$billingServerIp} secret=\"{$radiusSecret}\" service=ppp,hotspot,login";
-        $L[] = '/radius incoming set accept=yes port=3799';
-        $L[] = '';
+        $L = array_merge($L, $this->buildVlans($ctx));
+        $L = array_merge($L, $this->buildEtherEnable($ctx));
+        $L = array_merge($L, $this->buildRadius($ctx));
+        $L = array_merge($L, $this->buildIpPools($ctx));
 
-        // ── IP Pools ──────────────────────────────────────────────────────────
-        $L[] = '# --- IP Address Pools ---';
-        $L[] = '/ip pool remove [find name="pppoe-pool"]';
-        $L[] = "/ip pool add name=\"pppoe-pool\" ranges={$pppoePoolRange}";
-        $L[] = '/ip pool remove [find name="hotspot-pool"]';
-        $L[] = "/ip pool add name=\"hotspot-pool\" ranges={$hotspotPoolRange}";
-        $L[] = '';
-
-        // ── PPP Profiles ──────────────────────────────────────────────────────
         $L[] = '# --- PPP Profiles ---';
         $L[] = '/ppp profile remove [find name="pppoe-radius"]';
         $L[] = '/ppp profile add name="pppoe-radius" local-address=pppoe-pool remote-address=pppoe-pool use-compression=no only-one=yes';
         $L[] = '';
 
-        // ── PPPoE Server ──────────────────────────────────────────────────────
-        $L[] = '# --- PPPoE Server ---';
-        $L[] = "/interface pppoe-server server remove [find interface=\"{$customerIface}\"]";
-        $L[] = "/interface pppoe-server server add interface=\"{$customerIface}\" service-name=\"pppoe-service\" default-profile=\"pppoe-radius\" authentication=mschap2,mschap1,chap,pap one-session-per-host=yes disabled=no";
-        $L[] = '';
+        $L = array_merge($L, $this->buildPppoe($ctx));
+        $L = array_merge($L, $this->buildHotspot($ctx));
+        $L = array_merge($L, $this->buildHotspotFileDownload($ctx));
 
-        // ── Hotspot ───────────────────────────────────────────────────────────
-        $L[] = '# --- Hotspot Server ---';
-        $L[] = "/ip hotspot remove [find interface=\"{$customerIface}\"]";
-        $L[] = '/ip hotspot profile remove [find name="hsprof-radius"]';
-        $L[] = "/ip hotspot profile add name=\"hsprof-radius\" hotspot-address=192.168.2.1 dns-name=\"{$billingDomain}\" use-radius=yes radius-location-id=\"{$routerName}\" login-by=http-pap,http-chap http-cookie-lifetime=1d";
-        $L[] = "/ip hotspot add interface=\"{$customerIface}\" address-pool=hotspot-pool profile=\"hsprof-radius\" name=\"hotspot-server\" disabled=no";
-        $L[] = '';
-
-        // ── Auto-Download Hotspot Files ───────────────────────────────────────
-        $hotspotBaseUrl = rtrim(config('app.url'), '/') . '/api/hotspot-files/' . $router->id;
-        $L[] = '# --- Auto-Download Hotspot Files ---';
-        $L[] = ":local hotspotBaseUrl \"{$hotspotBaseUrl}\"";
-        $L[] = ':do {';
-        $L[] = '    /tool fetch url=($hotspotBaseUrl . "/login.html") dst-path="hotspot/login.html"';
-        $L[] = '    /tool fetch url=($hotspotBaseUrl . "/alogin.html") dst-path="hotspot/alogin.html"';
-        $L[] = '    /tool fetch url=($hotspotBaseUrl . "/status.html") dst-path="hotspot/status.html"';
-        $L[] = '    :put "Hotspot HTML files downloaded successfully."';
-        $L[] = '} on-error={';
-        $L[] = '    :put "WARNING: Could not download hotspot files. Upload them manually."';
-        $L[] = '}';
-        $L[] = '';
-
-        // ── Walled Garden ─────────────────────────────────────────────────────
         $L[] = '# --- Hotspot Walled Garden ---';
         $L[] = '/ip hotspot walled-garden remove [find]';
-        $L[] = "/ip hotspot walled-garden add server=\"hotspot-server\" dst-host=\"{$billingDomain}\" action=allow";
-        $L[] = "/ip hotspot walled-garden add server=\"hotspot-server\" dst-host=\"*.{$billingDomain}\" action=allow";
-        $L[] = "/ip hotspot walled-garden ip add server=\"hotspot-server\" dst-address={$billingServerIp} action=accept";
+        $L[] = "/ip hotspot walled-garden add server=\"hotspot-server\" dst-host=\"{$ctx['billingDomain']}\" action=allow";
+        $L[] = "/ip hotspot walled-garden add server=\"hotspot-server\" dst-host=\"*.{$ctx['billingDomain']}\" action=allow";
+        $L[] = "/ip hotspot walled-garden ip add server=\"hotspot-server\" dst-address={$ctx['billingServerIp']} action=accept";
         $L[] = '';
 
-        // ── NAT ───────────────────────────────────────────────────────────────
         $L[] = '# --- NAT Masquerade ---';
         $L[] = '/ip firewall nat remove [find comment="ISP-NAT"]';
-        $L[] = "/ip firewall nat add chain=srcnat out-interface=\"{$wanIface}\" action=masquerade comment=\"ISP-NAT\"";
+        $L[] = "/ip firewall nat add chain=srcnat out-interface=\"{$ctx['wanIface']}\" action=masquerade comment=\"ISP-NAT\"";
         $L[] = '';
 
-        // ── PCQ Queues ────────────────────────────────────────────────────────
-        $L[] = '# --- PCQ Queue Types ---';
-        $L[] = '/queue type remove [find name="pcq-download"]';
-        $L[] = '/queue type add name="pcq-download" kind=pcq pcq-rate=0 pcq-classifier=dst-address pcq-dst-address-mask=32 pcq-src-address-mask=32';
-        $L[] = '/queue type remove [find name="pcq-upload"]';
-        $L[] = '/queue type add name="pcq-upload" kind=pcq pcq-rate=0 pcq-classifier=src-address pcq-dst-address-mask=32 pcq-src-address-mask=32';
-        $L[] = '/queue tree remove [find name="Download"]';
-        $L[] = "/queue tree add name=\"Download\" parent=\"{$wanIface}\" queue=pcq-download";
-        $L[] = '/queue tree remove [find name="Upload"]';
-        $L[] = '/queue tree add name="Upload" parent=global queue=pcq-upload';
+        $L = array_merge($L, $this->buildPcqQueues($ctx));
+        $L = array_merge($L, $this->buildPhaseCallback(2, $ctx));
+
+        $L[] = ':put "Phase 2 complete — services configured."';
         $L[] = '';
 
-        // ── Firewall ──────────────────────────────────────────────────────────
+        return $L;
+    }
+
+    // ── Phase 3 lines ──────────────────────────────────────────────────────────
+
+    protected function generatePhase3Lines(Router $router, array $ctx): array
+    {
+        $L = [];
+
+        $L[] = '# ============================================================';
+        $L[] = '# PHASE 3 — Security Hardening';
+        $L[] = '# ============================================================';
+        $L[] = '';
+
+        $L = array_merge($L, $this->buildFirewall($ctx));
+        $L = array_merge($L, $this->buildSecurityHardening($ctx));
+
+        $L[] = '# --- NTP Client ---';
+        $L[] = ':do { /system ntp client set enabled=yes } on-error={}';
+        $L[] = ':do { /system ntp client servers add address=216.239.35.0 } on-error={}';
+        $L[] = ':do { /system ntp client servers add address=216.239.35.4 } on-error={}';
+        $L[] = '';
+
+        $L[] = '# --- DNS ---';
+        $L[] = '/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1';
+        $L[] = '';
+
+        $L = array_merge($L, $this->buildHeartbeat($ctx));
+
+        $L[] = '# --- Scheduled Auto-Update (nightly at 03:00) ---';
+        $L[] = '/system scheduler remove [find name="iNettotik-AutoUpdate"]';
+        $L[] = '/system scheduler add \\';
+        $L[] = '    name="iNettotik-AutoUpdate" \\';
+        $L[] = '    interval=1d \\';
+        $L[] = '    start-time=03:00:00 \\';
+        $L[] = '    on-event=("/tool fetch url=\"' . $ctx['provisionUrl'] . '\" dst-path=\"' . $ctx['scriptFilename'] . '\"; /import ' . $ctx['scriptFilename'] . '") \\';
+        $L[] = '    comment="iNettotik: auto-fetch and apply latest config from billing server"';
+        $L[] = '';
+
+        $L = array_merge($L, $this->buildPhaseCallback(3, $ctx));
+
+        $L[] = ':put "=============================================="';
+        $L[] = ':put "  iNettotik provisioning complete!"';
+        $L[] = ':put "  All 3 phases applied successfully."';
+        $L[] = ':put "  Auto-update scheduled daily at 03:00."';
+        $L[] = ':put "=============================================="';
+
+        return $L;
+    }
+
+    // ── Component builders ─────────────────────────────────────────────────────
+
+    protected function buildEtherLockdown(array $ctx): array
+    {
+        return [
+            '# --- Ether Port Lockdown (no internet until Phase 2) ---',
+            '# Lock all ether ports except WAN — prevents any internet leaking',
+            ":foreach i in=[/interface ethernet find where name!=\"{$ctx['wanIface']}\"] do={",
+            '    /interface ethernet set $i disabled=yes',
+            '}',
+            '',
+        ];
+    }
+
+    protected function buildEtherEnable(array $ctx): array
+    {
+        return [
+            '# --- Re-enable Customer Ether Ports (under bridge with VLAN tagging) ---',
+            ":foreach i in=[/interface ethernet find where name!=\"{$ctx['wanIface']}\"] do={",
+            '    /interface ethernet set $i disabled=no',
+            '}',
+            '# Add non-WAN interfaces to customer bridge',
+            ":foreach i in=[/interface ethernet find where name!=\"{$ctx['wanIface']}\"] do={",
+            "    :if ([:len [/interface bridge port find interface=[/interface ethernet get \$i name]]] = 0) do={",
+            "        /interface bridge port add bridge=\"{$ctx['customerIface']}\" interface=[/interface ethernet get \$i name]",
+            '    }',
+            '}',
+            '',
+        ];
+    }
+
+    protected function buildWireGuard(array $ctx): array
+    {
+        return [
+            '# --- WireGuard Management Tunnel (wg-billing) ---',
+            '',
+            '# Remove existing peers, addresses and interface by name/comment',
+            '# (safe on fresh router — [find] returns empty, nothing is removed)',
+            '/interface wireguard peers remove [find comment="iNettotik Billing Server"]',
+            '/ip address remove [find comment="iNettotik VPN IP"]',
+            '/interface wireguard remove [find name="wg-billing"]',
+            '',
+            '# Create fresh WireGuard interface',
+            "/interface wireguard add name=\"wg-billing\" listen-port={$ctx['wgPort']} mtu=1420 comment=\"iNettotik Billing Tunnel\"",
+            '',
+            '# Assign VPN IP',
+            "/ip address add address={$ctx['wgRouterIp']} interface=\"wg-billing\" comment=\"iNettotik VPN IP\"",
+            '',
+            '# Add billing server as peer',
+            '/interface wireguard peers add interface="wg-billing" \\',
+            "    public-key=\"{$ctx['billingPublicKey']}\" \\",
+            "    endpoint-address={$ctx['billingServerIp']} \\",
+            "    endpoint-port={$ctx['wgPort']} \\",
+            "    allowed-address=\"{$ctx['wgAllowedAddresses']}\" \\",
+            '    persistent-keepalive=25s \\',
+            '    comment="iNettotik Billing Server"',
+            '',
+            '# Allow WireGuard UDP through firewall',
+            '/ip firewall filter remove [find comment="ISP-WG-BILLING"]',
+            "/ip firewall filter add chain=input protocol=udp dst-port={$ctx['wgPort']} action=accept comment=\"ISP-WG-BILLING\"",
+            '',
+        ];
+    }
+
+    protected function buildVlans(array $ctx): array
+    {
+        return [
+            '# --- VLAN Isolation ---',
+            '# VLAN 10 = PPPoE subscribers, VLAN 20 = Hotspot subscribers',
+            '/interface vlan remove [find name="vlan10-pppoe"]',
+            "/interface vlan add name=\"vlan10-pppoe\" vlan-id=10 interface=\"{$ctx['customerIface']}\" comment=\"PPPoE Subscribers\"",
+            '/interface vlan remove [find name="vlan20-hotspot"]',
+            "/interface vlan add name=\"vlan20-hotspot\" vlan-id=20 interface=\"{$ctx['customerIface']}\" comment=\"Hotspot Subscribers\"",
+            '',
+        ];
+    }
+
+    protected function buildRadius(array $ctx): array
+    {
+        return [
+            '# --- RADIUS Client ---',
+            '/radius remove [find]',
+            "/radius add address={$ctx['billingServerIp']} secret=\"{$ctx['radiusSecret']}\" service=ppp,hotspot,login",
+            '/radius incoming set accept=yes port=3799',
+            '',
+        ];
+    }
+
+    protected function buildIpPools(array $ctx): array
+    {
+        return [
+            '# --- IP Address Pools ---',
+            '/ip pool remove [find name="pppoe-pool"]',
+            "/ip pool add name=\"pppoe-pool\" ranges={$ctx['pppoePoolRange']}",
+            '/ip pool remove [find name="hotspot-pool"]',
+            "/ip pool add name=\"hotspot-pool\" ranges={$ctx['hotspotPoolRange']}",
+            '',
+        ];
+    }
+
+    protected function buildPppoe(array $ctx): array
+    {
+        return [
+            '# --- PPPoE Server (on VLAN 10) ---',
+            '/interface pppoe-server server remove [find interface="vlan10-pppoe"]',
+            '/interface pppoe-server server add interface="vlan10-pppoe" service-name="pppoe-service" default-profile="pppoe-radius" authentication=mschap2,mschap1,chap,pap one-session-per-host=yes disabled=no',
+            '',
+        ];
+    }
+
+    protected function buildHotspot(array $ctx): array
+    {
+        return [
+            '# --- Hotspot Server (on VLAN 20) ---',
+            '/ip hotspot remove [find interface="vlan20-hotspot"]',
+            '/ip hotspot profile remove [find name="hsprof-radius"]',
+            "/ip hotspot profile add name=\"hsprof-radius\" hotspot-address=192.168.2.1 dns-name=\"{$ctx['billingDomain']}\" use-radius=yes radius-location-id=\"{$ctx['routerName']}\" login-by=http-pap,http-chap http-cookie-lifetime=1d",
+            '/ip hotspot add interface="vlan20-hotspot" address-pool=hotspot-pool profile="hsprof-radius" name="hotspot-server" disabled=no',
+            '',
+        ];
+    }
+
+    protected function buildHotspotFileDownload(array $ctx): array
+    {
+        return [
+            '# --- Auto-Download Hotspot Files ---',
+            ":local hotspotBaseUrl \"{$ctx['hotspotBaseUrl']}\"",
+            ':do {',
+            '    /tool fetch url=($hotspotBaseUrl . "/login.html") dst-path="hotspot/login.html"',
+            '    /tool fetch url=($hotspotBaseUrl . "/alogin.html") dst-path="hotspot/alogin.html"',
+            '    /tool fetch url=($hotspotBaseUrl . "/status.html") dst-path="hotspot/status.html"',
+            '    :put "Hotspot HTML files downloaded successfully."',
+            '} on-error={',
+            '    :put "WARNING: Could not download hotspot files. Upload them manually."',
+            '}',
+            '',
+        ];
+    }
+
+    protected function buildPcqQueues(array $ctx): array
+    {
+        return [
+            '# --- PCQ Queue Types ---',
+            '/queue type remove [find name="pcq-download"]',
+            '/queue type add name="pcq-download" kind=pcq pcq-rate=0 pcq-classifier=dst-address pcq-dst-address-mask=32 pcq-src-address-mask=32',
+            '/queue type remove [find name="pcq-upload"]',
+            '/queue type add name="pcq-upload" kind=pcq pcq-rate=0 pcq-classifier=src-address pcq-dst-address-mask=32 pcq-src-address-mask=32',
+            '/queue tree remove [find name="Download"]',
+            "/queue tree add name=\"Download\" parent=\"{$ctx['wanIface']}\" queue=pcq-download",
+            '/queue tree remove [find name="Upload"]',
+            '/queue tree add name="Upload" parent=global queue=pcq-upload',
+            '',
+        ];
+    }
+
+    protected function buildFirewall(array $ctx): array
+    {
+        $L = [];
+
         $L[] = '# --- Firewall Rules ---';
         $L[] = '';
         $L[] = '# Drop invalid connections';
@@ -169,7 +484,16 @@ class MikrotikScriptService
         $L[] = '';
         $L[] = '# Client-to-client isolation';
         $L[] = '/ip firewall filter remove [find comment="ISP-NO-CLIENT2CLIENT"]';
-        $L[] = "/ip firewall filter add chain=forward in-interface=\"{$customerIface}\" out-interface=\"{$customerIface}\" action=drop comment=\"ISP-NO-CLIENT2CLIENT\"";
+        $L[] = "/ip firewall filter add chain=forward in-interface=\"{$ctx['customerIface']}\" out-interface=\"{$ctx['customerIface']}\" action=drop comment=\"ISP-NO-CLIENT2CLIENT\"";
+        $L[] = '';
+        $L[] = '# Block DNS requests from WAN (prevent open resolver / DNS amplification)';
+        $L[] = '/ip firewall filter remove [find comment="ISP-NO-DNS-WAN"]';
+        $L[] = "/ip firewall filter add chain=input protocol=udp dst-port=53 in-interface=\"{$ctx['wanIface']}\" action=drop comment=\"ISP-NO-DNS-WAN\"";
+        $L[] = "/ip firewall filter add chain=input protocol=tcp dst-port=53 in-interface=\"{$ctx['wanIface']}\" action=drop comment=\"ISP-NO-DNS-WAN\"";
+        $L[] = '';
+        $L[] = '# Block WinBox discovery from WAN';
+        $L[] = '/ip firewall filter remove [find comment="ISP-NO-WINBOX-WAN-DISC"]';
+        $L[] = "/ip firewall filter add chain=input protocol=udp dst-port=5678 in-interface=\"{$ctx['wanIface']}\" action=drop comment=\"ISP-NO-WINBOX-WAN-DISC\"";
         $L[] = '';
         $L[] = '# SSH brute-force protection';
         $L[] = '/ip firewall filter remove [find comment="ISP-BRUTE-SSH"]';
@@ -178,105 +502,91 @@ class MikrotikScriptService
         $L[] = '/ip firewall filter add chain=input protocol=tcp dst-port=22 connection-state=new action=add-src-to-address-list address-list=ssh-bruteforce address-list-timeout=1h comment="ISP-DETECT-SSH"';
         $L[] = '';
 
-        if (!empty($mgmtIpList)) {
+        if (!empty($ctx['mgmtIpList'])) {
             $L[] = '# Management IP Whitelist';
             $L[] = '/ip firewall address-list remove [find list="mgmt-allowed"]';
-            foreach ($mgmtIpList as $ip) {
-                $L[] = "/ip firewall address-list add list=\"mgmt-allowed\" address={$ip} comment=\"Management\"";
+            foreach ($ctx['mgmtIpList'] as $ip) {
+                $safeIp = $this->sanitizeForRos($ip);
+                $L[] = "/ip firewall address-list add list=\"mgmt-allowed\" address={$safeIp} comment=\"Management\"";
             }
-            $L[] = "/ip firewall address-list add list=\"mgmt-allowed\" address={$billingServerIp} comment=\"Billing Server\"";
+            $safeServerIp = $this->sanitizeForRos($ctx['billingServerIp']);
+            $L[] = "/ip firewall address-list add list=\"mgmt-allowed\" address={$safeServerIp} comment=\"Billing Server\"";
             $L[] = '/ip firewall filter remove [find comment="ISP-MGMT-ALLOW"]';
             $L[] = '/ip firewall filter add chain=input src-address-list=mgmt-allowed action=accept comment="ISP-MGMT-ALLOW"';
             $L[] = '/ip firewall filter remove [find comment="ISP-MGMT-DROP"]';
-            $L[] = "/ip firewall filter add chain=input action=drop src-address-list=!mgmt-allowed in-interface=\"{$wanIface}\" protocol=tcp dst-port=22,8291 comment=\"ISP-MGMT-DROP\"";
+            $L[] = "/ip firewall filter add chain=input action=drop src-address-list=!mgmt-allowed in-interface=\"{$ctx['wanIface']}\" protocol=tcp dst-port=22,80,8291,8728 comment=\"ISP-MGMT-DROP\"";
             $L[] = '';
         }
 
-        // ── Services ──────────────────────────────────────────────────────────
-        $L[] = '# --- Services ---';
-        $L[] = '/ip service disable telnet,ftp,www-ssl,api-ssl';
-        $L[] = '/ip service enable ssh,winbox,api,www';
-        $L[] = '/ip service set ssh port=22';
-        $L[] = '/ip service set winbox port=8291';
-        $L[] = '/ip service set api port=8728';
-        $L[] = '/ip service set www port=80';
+        $L[] = '# Default DROP on input chain for WAN interface';
+        $L[] = '/ip firewall filter remove [find comment="ISP-DROP-ALL-INPUT"]';
+        $L[] = "/ip firewall filter add chain=input action=drop in-interface=\"{$ctx['wanIface']}\" comment=\"ISP-DROP-ALL-INPUT\"";
         $L[] = '';
 
-        // ── NTP ───────────────────────────────────────────────────────────────
-        $L[] = '# --- NTP Client ---';
-        $L[] = ':do { /system ntp client set enabled=yes } on-error={}';
-        $L[] = ':do { /system ntp client servers add address=216.239.35.0 } on-error={}';
-        $L[] = ':do { /system ntp client servers add address=216.239.35.4 } on-error={}';
-        $L[] = '';
+        return $L;
+    }
 
-        // ── DNS ───────────────────────────────────────────────────────────────
-        $L[] = '# --- DNS ---';
-        $L[] = '/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1';
-        $L[] = '';
+    protected function buildSecurityHardening(array $ctx): array
+    {
+        return [
+            '# --- Services (disable unused, restrict active) ---',
+            '/ip service disable telnet,ftp,www-ssl,api-ssl',
+            '/ip service enable ssh,winbox,api,www',
+            '/ip service set ssh port=22',
+            '/ip service set winbox port=8291',
+            '/ip service set api port=8728',
+            '/ip service set www port=80',
+            '',
+        ];
+    }
 
-        // ── WireGuard ─────────────────────────────────────────────────────────
-        //
-        // FIX: The previous :foreach loop to remove orphaned interfaces caused
-        // "input does not match any value of interface" on fresh routers because
-        // RouterOS cannot remove an interface that is currently referenced by
-        // other config (IP addresses, peers). The safe approach is:
-        //
-        //  1. Remove peers by comment first (safe on fresh router — finds nothing)
-        //  2. Remove IP addresses by comment (safe — finds nothing on fresh)
-        //  3. Remove the named interface only (safe — finds nothing on fresh)
-        //  4. Create fresh interface, IP, peer
-        //
-        // We do NOT use :foreach to remove unnamed/orphaned interfaces because
-        // on RouterOS 7.x the find filter on WireGuard interfaces returns internal
-        // object IDs (*11 etc.) that cannot be passed to remove in a loop safely.
-        // Orphaned interfaces only accumulate if the script aborts mid-run, which
-        // the cleanup in steps 1-3 now prevents.
-        //
-        $L[] = '# --- WireGuard Management Tunnel (wg-billing) ---';
-        $L[] = '';
-        $L[] = '# Remove existing peers, addresses and interface by name/comment';
-        $L[] = '# (safe on fresh router — [find] returns empty, nothing is removed)';
-        $L[] = '/interface wireguard peers remove [find comment="iNettotik Billing Server"]';
-        $L[] = '/ip address remove [find comment="iNettotik VPN IP"]';
-        $L[] = '/interface wireguard remove [find name="wg-billing"]';
-        $L[] = '';
-        $L[] = '# Create fresh WireGuard interface';
-        $L[] = "/interface wireguard add name=\"wg-billing\" listen-port={$wgPort} mtu=1420 comment=\"iNettotik Billing Tunnel\"";
-        $L[] = '';
-        $L[] = '# Assign VPN IP';
-        $L[] = "/ip address add address={$wgRouterIp} interface=\"wg-billing\" comment=\"iNettotik VPN IP\"";
-        $L[] = '';
-        $L[] = '# Add billing server as peer';
-        $L[] = '/interface wireguard peers add interface="wg-billing" \\';
-        $L[] = "    public-key=\"{$billingPublicKey}\" \\";
-        $L[] = "    endpoint-address={$billingServerIp} \\";
-        $L[] = "    endpoint-port={$wgPort} \\";
-        $L[] = "    allowed-address=\"{$wgAllowedAddresses}\" \\";
-        $L[] = '    persistent-keepalive=25s \\';
-        $L[] = '    comment="iNettotik Billing Server"';
-        $L[] = '';
-        $L[] = '# Allow WireGuard UDP through firewall';
-        $L[] = '/ip firewall filter remove [find comment="ISP-WG-BILLING"]';
-        $L[] = "/ip firewall filter add chain=input protocol=udp dst-port={$wgPort} action=accept comment=\"ISP-WG-BILLING\"";
-        $L[] = '';
+    protected function buildHeartbeat(array $ctx): array
+    {
+        return [
+            '# --- Persistent Heartbeat (every 5 minutes) ---',
+            '/system scheduler remove [find name="iNettotik-Heartbeat"]',
+            '/system scheduler add name="iNettotik-Heartbeat" interval=5m \\',
+            '    on-event={',
+            '        :do {',
+            "            /tool fetch url=\"{$ctx['heartbeatUrl']}\" \\",
+            '                http-method=post \\',
+            '                http-header-field="Content-Type: application/json" \\',
+            '                http-data=("{\"router_name\":\"" . [/system identity get name] . "\"}") \\',
+            '                output=none',
+            '        } on-error={}',
+            '    } \\',
+            '    comment="iNettotik: billing server keepalive"',
+            '',
+            '# --- WireGuard Auto-Recovery (every 10 minutes) ---',
+            '/system scheduler remove [find name="iNettotik-WG-Recovery"]',
+            '/system scheduler add name="iNettotik-WG-Recovery" interval=10m \\',
+            '    on-event={',
+            "        :if ([/ping {$ctx['wgServerPingIp']} count=3] = 0) do={",
+            '            /interface wireguard disable [find name="wg-billing"]',
+            '            :delay 5s',
+            '            /interface wireguard enable [find name="wg-billing"]',
+            '        }',
+            '    } \\',
+            '    comment="iNettotik: WireGuard auto-recovery"',
+            '',
+        ];
+    }
 
-        // ── Auto-Register ─────────────────────────────────────────────────────
-        $L[] = '# --- Auto-Register with Billing Server ---';
+    protected function buildPhaseCallback(int $phase, array $ctx): array
+    {
+        $L = [];
+        $L[] = "# --- Phase {$phase} Callback ---";
         $L[] = ':local wanIP ""';
         $L[] = ':do {';
-        $L[] = "    :set wanIP [/ip address get [find interface=\"{$wanIface}\"] address]";
+        $L[] = "    :set wanIP [/ip address get [find interface=\"{$ctx['wanIface']}\"] address]";
         $L[] = '    :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]]';
-        $L[] = '} on-error={';
-        $L[] = "    :put \"WARNING: Could not detect WAN IP on {$wanIface}\"";
-        $L[] = '}';
+        $L[] = '} on-error={}';
         $L[] = '';
         $L[] = ':local vpnIP ""';
         $L[] = ':do {';
         $L[] = '    :set vpnIP [/ip address get [find interface="wg-billing"] address]';
         $L[] = '    :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]]';
-        $L[] = '} on-error={';
-        $L[] = '    :put "WARNING: Could not detect VPN IP"';
-        $L[] = '}';
+        $L[] = '} on-error={}';
         $L[] = '';
         $L[] = ':local routerPubKey ""';
         $L[] = ':do {';
@@ -287,44 +597,26 @@ class MikrotikScriptService
         $L[] = '    /tool fetch url=$callbackURL \\';
         $L[] = '        http-method=post \\';
         $L[] = '        http-header-field="Content-Type: application/json" \\';
-        $L[] = '        http-data=("{\"router_name\":\"" . $routerName . "\",\"wan_ip\":\"" . $wanIP . "\",\"vpn_ip\":\"" . $vpnIP . "\",\"radius_secret\":\"" . $radiusSecret . "\",\"wg_public_key\":\"" . $routerPubKey . "\"}") \\';
+        $L[] = "        http-data=(\"{\\\"router_name\\\":\\\"\" . \$routerName . \"\\\",\\\"wan_ip\\\":\\\"\" . \$wanIP . \"\\\",\\\"vpn_ip\\\":\\\"\" . \$vpnIP . \"\\\",\\\"wg_public_key\\\":\\\"\" . \$routerPubKey . \"\\\",\\\"phase\\\":{$phase}}\") \\";
         $L[] = '        output=none';
-        $L[] = '    :put "=============================================="';
-        $L[] = '    :put "  Router registered in iNettotik database!"';
         $L[] = '    :put "  WAN IP:     $wanIP"';
         $L[] = '    :put "  VPN IP:     $vpnIP"';
         $L[] = '    :put "  WG PubKey:  $routerPubKey"';
-        $L[] = '    :put "=============================================="';
         $L[] = '} on-error={';
-        $L[] = '    :put "WARNING: Could not reach billing server at $callbackURL"';
+        $L[] = "    :put \"WARNING: Could not reach billing server at \$callbackURL\"";
         $L[] = '    :put "  WAN IP:    $wanIP"';
         $L[] = '    :put "  VPN IP:    $vpnIP"';
         $L[] = '    :put "  WG PubKey: $routerPubKey"';
-        $L[] = '    :put "  Secret:    $radiusSecret"';
         $L[] = '}';
         $L[] = '';
-
-        // ── Scheduler ─────────────────────────────────────────────────────────
-        $L[] = '# --- Scheduled Auto-Update (nightly at 03:00) ---';
-        $L[] = '/system scheduler remove [find name="iNettotik-AutoUpdate"]';
-        $L[] = '/system scheduler add \\';
-        $L[] = '    name="iNettotik-AutoUpdate" \\';
-        $L[] = '    interval=1d \\';
-        $L[] = '    start-time=03:00:00 \\';
-        $L[] = '    on-event=("/tool fetch url=\"' . $provisionUrl . '\" dst-path=\"' . $scriptFilename . '\"; /import ' . $scriptFilename . '") \\';
-        $L[] = '    comment="iNettotik: auto-fetch and apply latest config from billing server"';
-        $L[] = '';
-        $L[] = ':put "=============================================="';
-        $L[] = ':put "  iNettotik provisioning complete!"';
-        $L[] = ':put "  Auto-update scheduled daily at 03:00."';
-        $L[] = ':put "=============================================="';
-
-        return implode("\n", $L) . "\n";
+        return $L;
     }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
     protected function resolveRadiusIp(): string
     {
-        $ip = env('RADIUS_SERVER_IP', '');
+        $ip = (string)env('RADIUS_SERVER_IP', '');
         if ($ip !== '') return trim($ip);
         $host = parse_url(config('app.url'), PHP_URL_HOST) ?: '';
         return filter_var($host, FILTER_VALIDATE_IP) ? $host : '127.0.0.1';
@@ -332,7 +624,7 @@ class MikrotikScriptService
 
     protected function resolveWgPublicKey(): string
     {
-        return trim(env('WG_SERVER_PUBLIC_KEY', 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV'));
+        return trim((string)env('WG_SERVER_PUBLIC_KEY', 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV'));
     }
 
     protected function resolveWgPort(): int

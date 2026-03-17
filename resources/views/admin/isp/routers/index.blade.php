@@ -111,8 +111,9 @@
                                     @endif
                                 </td>
 
-                                {{-- STATUS — real-time online/offline badge --}}
+                                {{-- STATUS — real-time online/offline badge + provision phase --}}
                                 <td>
+                                    @php $phase = (int)($router->provision_phase ?? 0); @endphp
                                     @if($router->vpn_ip || $router->wan_ip)
                                         <span class="badge status-badge bg-secondary status-badge-{{ $router->id }}"
                                               id="status-{{ $router->id }}"
@@ -123,6 +124,15 @@
                                         </span>
                                     @else
                                         <span class="badge bg-warning text-dark">Not Provisioned</span>
+                                    @endif
+                                    @if($phase === 0)
+                                        <br><span class="badge bg-secondary mt-1" title="Phase 0 — not provisioned">P0</span>
+                                    @elseif($phase === 1)
+                                        <br><span class="badge bg-warning text-dark mt-1" title="Phase 1 — connecting">⏳ P1</span>
+                                    @elseif($phase === 2)
+                                        <br><span class="badge bg-info text-dark mt-1" title="Phase 2 — services configured">⏳ P2</span>
+                                    @else
+                                        <br><span class="badge bg-success mt-1" title="Phase 3 — fully secured">✅ P3</span>
                                     @endif
                                 </td>
 
