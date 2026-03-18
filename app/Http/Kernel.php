@@ -74,5 +74,11 @@ class Kernel extends HttpKernel
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'reseller' => \App\Http\Middleware\ResellerMiddleware::class,
         'permission' => \App\Http\Middleware\CheckPermission::class,
+        // Multi-tenancy middleware
+        'resolve.tenant' => \App\Http\Middleware\ResolveTenant::class,
+        'subscription'   => \App\Http\Middleware\EnsureSubscriptionActive::class,
+        'block.test.data' => \App\Http\Middleware\BlockTestData::class,
+        'track.logins'   => \App\Http\Middleware\TrackLoginAttempts::class,
+        'audit.action'   => \App\Http\Middleware\AuditAction::class,
     ];
 }
