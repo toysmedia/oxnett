@@ -40,9 +40,20 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        // Super Admin guard — authenticates against super_admin_users on the system DB
+        'super_admin' => [
+            'driver' => 'session',
+            'provider' => 'super_admins',
+        ],
+        // Tenant admin guard — authenticates against users table on the tenant DB
         'admin' => [
             'driver' => 'session',
             'provider' => 'admins',
+        ],
+        // PPPoE customer guard — authenticates against subscribers table on the tenant DB
+        'customer' => [
+            'driver' => 'session',
+            'provider' => 'customers',
         ],
         'seller' => [
             'driver' => 'session',
@@ -72,19 +83,25 @@ return [
             'driver' => 'eloquent',
             'model' => App\Models\User::class,
         ],
+        // Super Admin on system DB
+        'super_admins' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\System\SuperAdmin::class,
+        ],
+        // Tenant admin on tenant DB
         'admins' => [
             'driver' => 'eloquent',
             'model' => App\Models\Admin::class,
+        ],
+        // PPPoE customers on tenant DB
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Subscriber::class,
         ],
         'sellers' => [
             'driver' => 'eloquent',
             'model' => App\Models\Seller::class,
         ],
-
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
     ],
 
     /*
@@ -109,6 +126,12 @@ return [
     'passwords' => [
         'users' => [
             'provider' => 'users',
+            'table' => 'password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        'super_admins' => [
+            'provider' => 'super_admins',
             'table' => 'password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,

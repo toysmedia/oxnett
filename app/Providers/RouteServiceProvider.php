@@ -45,6 +45,16 @@ class RouteServiceProvider extends ServiceProvider
                 ->prefix('seller')
                 ->name('seller.')
                 ->group(base_path('routes/seller.php'));
+
+            // Super Admin dashboard (admin.oxnet.co.ke)
+            Route::middleware('web')
+                ->prefix('superadmin')
+                ->group(base_path('routes/superadmin.php'));
+
+            // Customer portal (prefix set in customer.php)
+            Route::middleware('web')
+                ->prefix('customer')
+                ->group(base_path('routes/customer.php'));
         });
     }
 }
