@@ -43,6 +43,14 @@ Route::get('/packages', [ApiPackageController::class, 'index']);
 // Check payment status — rate limited to prevent enumeration
 Route::middleware('throttle:10,1')->get('/check-payment/{ref}', [MpesaController::class, 'checkPayment']);
 
+// Customer Portal API (tenant-scoped)
+Route::prefix('customer')->name('api.customer.')->group(function () {
+    Route::post('/mpesa/stk-push', [\App\Http\Controllers\Customer\PaymentController::class, 'apiStkPush'])->middleware('auth:customer')->name('stk.push');
+    Route::post('/mpesa/stk-callback', [\App\Http\Controllers\Customer\PaymentController::class, 'stkCallback'])->name('stk.callback')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+    Route::get('/usage', [\App\Http\Controllers\Customer\CustomerProfileController::class, 'apiUsage'])->middleware('auth:customer')->name('usage');
+    Route::get('/payment-status/{checkoutRequestId}', [\App\Http\Controllers\Customer\PaymentController::class, 'paymentStatus'])->middleware('auth:customer')->name('payment.status');
+});
+
 // Router auto-registration callback (called from MikroTik script via /tool fetch)
 // Protected by shared secret via verify_router_secret middleware
 use App\Http\Controllers\Api\RouterCallbackController;

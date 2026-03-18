@@ -27,10 +27,25 @@ class SupportTicket extends Model
     protected $fillable = [
         'customer_id',
         'subject',
+        'category',
         'message',
         'status',
         'priority',
     ];
+
+    // -------------------------------------------------------------------------
+    // Relationships
+    // -------------------------------------------------------------------------
+
+    public function customer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Subscriber::class, 'customer_id');
+    }
+
+    public function replies(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SupportTicketReply::class, 'ticket_id');
+    }
 
     // -------------------------------------------------------------------------
     // Scopes
