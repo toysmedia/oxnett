@@ -60,17 +60,17 @@ class TenantDefaultSeeder extends Seeder
     private function seedDefaultSettings(): void
     {
         $defaults = [
-            ['key' => 'isp_name',          'value' => 'My ISP',          'group' => 'general'],
-            ['key' => 'isp_email',          'value' => '',                'group' => 'general'],
-            ['key' => 'isp_phone',          'value' => '',                'group' => 'general'],
-            ['key' => 'currency',           'value' => 'KES',             'group' => 'general'],
-            ['key' => 'timezone',           'value' => 'Africa/Nairobi',  'group' => 'general'],
-            ['key' => 'sms_enabled',        'value' => '0',               'group' => 'notifications'],
-            ['key' => 'whatsapp_enabled',   'value' => '0',               'group' => 'notifications'],
-            ['key' => 'mpesa_enabled',      'value' => '0',               'group' => 'payment_credentials'],
-            ['key' => 'mpesa_env',          'value' => 'sandbox',         'group' => 'payment_credentials'],
-            ['key' => 'theme_color',        'value' => '#2563eb',         'group' => 'branding'],
-            ['key' => 'logo_url',           'value' => '',                'group' => 'branding'],
+            ['key' => 'isp_name',         'value' => 'My ISP',         'group' => 'general'],
+            ['key' => 'isp_email',        'value' => '',               'group' => 'general'],
+            ['key' => 'isp_phone',        'value' => '',               'group' => 'general'],
+            ['key' => 'currency',         'value' => 'KES',            'group' => 'general'],
+            ['key' => 'timezone',         'value' => 'Africa/Nairobi', 'group' => 'general'],
+            ['key' => 'sms_enabled',      'value' => '0',              'group' => 'notifications'],
+            ['key' => 'whatsapp_enabled', 'value' => '0',              'group' => 'notifications'],
+            ['key' => 'mpesa_enabled',    'value' => '0',              'group' => 'payment_credentials'],
+            ['key' => 'mpesa_env',        'value' => 'sandbox',        'group' => 'payment_credentials'],
+            ['key' => 'theme_color',      'value' => '#2563eb',        'group' => 'branding'],
+            ['key' => 'logo_url',         'value' => '',               'group' => 'branding'],
         ];
 
         foreach ($defaults as $setting) {

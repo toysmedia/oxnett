@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Crypt;
  * @property string $database_host
  * @property int $database_port
  * @property string $database_username
- * @property string $database_password  (AES-256 encrypted at rest)
+ * @property string $database_password  (encrypted at rest via Laravel Crypt)
  * @property int|null $plan_id
  * @property string $status
  * @property \Carbon\Carbon|null $trial_ends_at

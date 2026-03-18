@@ -185,11 +185,11 @@ class BlockTestData
             return true;
         }
 
-        // Check for sequential ascending digits (e.g. 0123456789)
+        // Check for sequential ascending digits (e.g. 0123456789, wrapping 9→0 with modulo)
         if (strlen($digitsOnly) >= 8) {
             $isSequential = true;
             for ($i = 1; $i < strlen($digitsOnly); $i++) {
-                if ((int) $digitsOnly[$i] !== (int) $digitsOnly[$i - 1] + 1) {
+                if ((int) $digitsOnly[$i] !== ((int) $digitsOnly[$i - 1] + 1) % 10) {
                     $isSequential = false;
                     break;
                 }

@@ -57,7 +57,7 @@ class TenantService
             'database_host'     => env('TENANT_DB_HOST', '127.0.0.1'),
             'database_port'     => (int) env('TENANT_DB_PORT', 3306),
             'database_username' => $dbUsername,
-            'database_password' => $dbPassword,   // setDatabasePasswordAttribute encrypts this
+            'database_password' => $dbPassword,   // automatically encrypted by the model mutator
             'plan_id'           => $plan?->id,
             'status'            => 'trial',
             'trial_ends_at'     => now()->addDays($plan?->trial_days ?? 14),

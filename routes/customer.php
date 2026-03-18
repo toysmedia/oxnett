@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Auth\TenantAdminLoginController;
+use App\Http\Controllers\Auth\CustomerLoginController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\Route;
 |   - auth:customer   : Requires an authenticated PPPoE customer
 |
 */
-
-use App\Http\Controllers\Auth\CustomerLoginController;
 
 // Unauthenticated customer routes
 Route::middleware(['resolve.tenant', 'subscription'])->group(function () {

@@ -43,7 +43,7 @@ class EnsureSubscriptionActive
 
         // Inject countdown warning into views when expiry is imminent
         $daysLeft = $tenant->daysUntilExpiry();
-        if ($daysLeft !== null && $daysLeft <= self::WARNING_DAYS && $daysLeft >= 0) {
+        if ($daysLeft <= self::WARNING_DAYS && $daysLeft >= 0) {
             view()->share('subscriptionExpiryDays', $daysLeft);
             view()->share('subscriptionExpiresAt', $tenant->subscription_expires_at ?? $tenant->trial_ends_at);
         }

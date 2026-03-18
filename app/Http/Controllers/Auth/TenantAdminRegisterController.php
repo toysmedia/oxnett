@@ -51,7 +51,7 @@ class TenantAdminRegisterController extends Controller
         $tenant = $result['tenant'];
 
         $appDomain = env('APP_DOMAIN', 'oxnet.co.ke');
-        $tenantUrl = "https://{$tenant->subdomain}.{$appDomain}/login";
+        $tenantUrl = url("https://{$tenant->subdomain}.{$appDomain}/login");
 
         return redirect($tenantUrl)
             ->with('success', "Welcome! Your ISP portal is ready at {$tenant->subdomain}.{$appDomain}");

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('database_host')->default('127.0.0.1');
             $table->unsignedSmallInteger('database_port')->default(3306);
             $table->string('database_username');
-            $table->text('database_password'); // AES-256 encrypted
+            $table->text('database_password'); // encrypted at rest via Laravel Crypt (AES-256-CBC)
             $table->foreignId('plan_id')->nullable()->constrained('pricing_plans')->nullOnDelete();
             $table->enum('status', ['active', 'suspended', 'trial', 'expired'])->default('trial');
             $table->timestamp('trial_ends_at')->nullable();
