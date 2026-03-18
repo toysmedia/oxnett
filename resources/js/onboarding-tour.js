@@ -102,7 +102,7 @@ function createTour() {
         {
             id: 'complete',
             title: '🎉 You\'re all set!',
-            text: 'You\'re ready to manage your ISP like a pro. You can restart this tour anytime from <strong>Settings → Help</strong>.',
+            text: 'You\'re ready to manage your ISP like a pro. You can restart this tour anytime from the <strong>user menu (top-right) → Restart Tour</strong>.',
             buttons: [
                 { text: 'Finish', action: () => tour.complete(), classes: 'btn btn-success btn-sm' },
             ],
