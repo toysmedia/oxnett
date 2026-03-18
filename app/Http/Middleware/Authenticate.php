@@ -18,6 +18,8 @@ class Authenticate extends Middleware
             $route_name = 'admin.login';
         } else if ($prefix == 'seller') {
             $route_name = 'seller.login';
+        } else if ($prefix == 'customer') {
+            $route_name = 'customer.login';
         } else {
             $route_name = 'login';
         }

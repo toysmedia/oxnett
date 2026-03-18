@@ -80,5 +80,8 @@ class Kernel extends HttpKernel
         'block.test.data' => \App\Http\Middleware\BlockTestData::class,
         'track.logins'   => \App\Http\Middleware\TrackLoginAttempts::class,
         'audit.action'   => \App\Http\Middleware\AuditAction::class,
+        // Customer portal middleware
+        'customer.portal.enabled' => \App\Http\Middleware\CustomerPortalEnabled::class,
+        'customer.active'         => \App\Http\Middleware\CustomerSubscriptionActive::class,
     ];
 }
