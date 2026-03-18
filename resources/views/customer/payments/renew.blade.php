@@ -16,7 +16,9 @@
 
         @if(session('checkout_request_id'))
         {{-- Payment status polling --}}
-        <div class="card border-0 shadow-sm mb-4" id="payment-status-card">
+        <div class="card border-0 shadow-sm mb-4" id="payment-status-card"
+             data-status-url="{{ route('api.customer.payment.status', '__id__') }}"
+             data-checkout-id="{{ session('checkout_request_id') }}">
             <div class="card-body text-center py-4">
                 <div class="spinner-border text-primary mb-3" id="payment-spinner"></div>
                 <h6 id="payment-status-text">Waiting for payment confirmation...</h6>
@@ -89,13 +91,16 @@
 @push('scripts')
 <script>
 (function () {
-    const checkoutId = @json(session('checkout_request_id'));
+    const card       = document.getElementById('payment-status-card');
+    if (!card) return;
+
+    const checkoutId = card.dataset.checkoutId;
+    const statusUrl  = card.dataset.statusUrl;
     if (!checkoutId) return;
 
     const statusText = document.getElementById('payment-status-text');
     const spinner    = document.getElementById('payment-spinner');
     const progressBar = document.getElementById('progress-bar');
-    const card       = document.getElementById('payment-status-card');
 
     let elapsed = 0;
     const maxTime = 60; // seconds
@@ -113,7 +118,7 @@
         }
 
         try {
-            const res  = await fetch('/api/customer/payment-status/' + checkoutId, {
+            const res  = await fetch(statusUrl.replace('__id__', checkoutId), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const data = await res.json();

@@ -65,11 +65,18 @@ class CustomerAuthController extends Controller
             }
         }
 
+        $baseUsername = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $data['name']));
+        $username = $baseUsername;
+        $counter = 1;
+        while (Subscriber::where('username', $username)->exists()) {
+            $username = $baseUsername . $counter++;
+        }
+
         $subscriber = Subscriber::create([
             'name'          => $data['name'],
             'email'         => $data['email'],
             'phone'         => $data['phone'],
-            'username'      => strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $data['name']) . rand(100, 999)),
+            'username'      => $username,
             'password_hash' => Hash::make($data['password']),
             'status'        => 'inactive',
         ]);

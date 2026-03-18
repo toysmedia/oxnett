@@ -175,7 +175,13 @@
                 @foreach($recentSessions as $session)
                 <tr>
                     <td>{{ $session->acctstarttime?->format('d M H:i') }}</td>
-                    <td>{{ $session->acctstoptime ? $session->acctstoptime->format('d M H:i') : '<span class="badge bg-success">Active</span>' }}</td>
+                    <td>
+                        @if($session->acctstoptime)
+                            {{ $session->acctstoptime->format('d M H:i') }}
+                        @else
+                            <span class="badge bg-success">Active</span>
+                        @endif
+                    </td>
                     <td>{{ $usageService->formatBytes($session->acctoutputoctets ?? 0) }}</td>
                     <td>{{ $usageService->formatBytes($session->acctinputoctets ?? 0) }}</td>
                     <td><code>{{ $session->framedipaddress ?? 'N/A' }}</code></td>

@@ -49,7 +49,7 @@ class CustomerMpesaService
         $phone = $this->formatPhone($phone);
 
         // Prevent duplicate STK pushes for the same phone + amount within 60 seconds
-        $cacheKey = "stk_push_{$phone}_{$amount}";
+        $cacheKey = "customer_mpesa:stk_push:{$phone}:{$amount}";
         $cached   = Cache::get($cacheKey);
         if ($cached) {
             Log::info('[CustomerMpesa] STK push rate-limited, returning cached response', compact('phone', 'amount'));

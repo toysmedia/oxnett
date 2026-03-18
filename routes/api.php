@@ -46,7 +46,7 @@ Route::middleware('throttle:10,1')->get('/check-payment/{ref}', [MpesaController
 // Customer Portal API (tenant-scoped)
 Route::prefix('customer')->name('api.customer.')->group(function () {
     Route::post('/mpesa/stk-push', [\App\Http\Controllers\Customer\PaymentController::class, 'apiStkPush'])->middleware('auth:customer')->name('stk.push');
-    Route::post('/mpesa/stk-callback', [\App\Http\Controllers\Customer\PaymentController::class, 'stkCallback'])->name('stk.callback')->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+    Route::post('/mpesa/stk-callback', [\App\Http\Controllers\Customer\PaymentController::class, 'stkCallback'])->name('stk.callback');
     Route::get('/usage', [\App\Http\Controllers\Customer\CustomerProfileController::class, 'apiUsage'])->middleware('auth:customer')->name('usage');
     Route::get('/payment-status/{checkoutRequestId}', [\App\Http\Controllers\Customer\PaymentController::class, 'paymentStatus'])->middleware('auth:customer')->name('payment.status');
 });

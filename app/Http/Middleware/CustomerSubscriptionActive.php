@@ -9,11 +9,12 @@ use Symfony\Component\HttpFoundation\Response;
 class CustomerSubscriptionActive
 {
     /**
-     * Routes that expired subscribers are still allowed to access.
+     * Route names that expired/suspended subscribers are still allowed to access.
      */
-    private const ALLOWED_PATHS = [
-        'customer/payments/renew',
-        'customer/logout',
+    private const ALLOWED_ROUTE_NAMES = [
+        'customer.payments.renew',
+        'customer.payments.process',
+        'customer.logout',
     ];
 
     public function handle(Request $request, Closure $next): Response
@@ -26,12 +27,10 @@ class CustomerSubscriptionActive
         }
 
         if ($subscriber->isExpired() || $subscriber->status === 'suspended') {
-            $path = ltrim($request->path(), '/');
+            $currentRoute = $request->route()?->getName();
 
-            foreach (self::ALLOWED_PATHS as $allowed) {
-                if (str_starts_with($path, $allowed)) {
-                    return $next($request);
-                }
+            if (in_array($currentRoute, self::ALLOWED_ROUTE_NAMES, true)) {
+                return $next($request);
             }
 
             if ($request->expectsJson()) {

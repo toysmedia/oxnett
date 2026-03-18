@@ -145,7 +145,7 @@ class PaymentController extends Controller
             return response()->json(['ResultCode' => 0, 'ResultDesc' => 'Accepted']);
         }
 
-        if ($resultCode == 0) {
+        if ($resultCode === 0) {
             $items   = collect($body['CallbackMetadata']['Item'] ?? []);
             $receipt = $items->firstWhere('Name', 'MpesaReceiptNumber')['Value'] ?? null;
             $amount  = $items->firstWhere('Name', 'Amount')['Value'] ?? null;
