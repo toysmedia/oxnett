@@ -51,6 +51,9 @@ class RouteServiceProvider extends ServiceProvider
                 ->prefix('superadmin')
                 ->group(base_path('routes/superadmin.php'));
 
+            Route::middleware('web')
+                ->group(base_path('routes/super-admin.php'));
+
             // Customer portal (prefix set in customer.php)
             Route::middleware('web')
                 ->prefix('customer')
