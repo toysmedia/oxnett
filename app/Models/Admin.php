@@ -17,7 +17,12 @@ class Admin extends Authenticatable implements MustVerifyEmail
         'name',
         'email',
         'mobile',
-        'password'
+        'password',
+        'tour_completed',
+    ];
+
+    protected $casts = [
+        'tour_completed' => 'boolean',
     ];
 
     public function setPasswordAttribute($value)

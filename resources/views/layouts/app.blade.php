@@ -28,7 +28,16 @@
     <script src="{{ asset('assets/vendor/js/helpers.js') }}"></script>
     <script src="{{ asset('assets/js/config.js') }}"></script>
 
-    @vite(['resources/sass/app.scss', 'resources/js/app.js'])
+    @vite([
+        'resources/sass/app.scss',
+        'resources/js/app.js',
+        'resources/css/dark-mode.css',
+        'resources/js/dark-mode.js',
+        'resources/js/subscription-countdown.js',
+        'resources/js/notifications-poll.js',
+        'resources/js/support-chat.js',
+        'resources/js/onboarding-tour.js',
+    ])
 
     @stack('styles')
 </head>
@@ -89,6 +98,9 @@
 @stack('scripts')
 
 @include('layouts.parts.flash')
+
+{{-- Onboarding Tour --}}
+@include('components.onboarding-tour')
 
 </body>
 </html>

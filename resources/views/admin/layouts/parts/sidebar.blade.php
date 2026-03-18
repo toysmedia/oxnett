@@ -16,13 +16,13 @@
     <ul class="menu-inner py-1 ps ps--active-y">
         <li class="menu-header small text-uppercase"><span class="menu-header-text">ISP Billing</span></li>
         <li class="menu-item {{ is_active_menu('admin.isp.dashboard') }}">
-            <a href="{{ route('admin.isp.dashboard') }}" class="menu-link">
+            <a href="{{ route('admin.isp.dashboard') }}" class="menu-link" data-tour="dashboard">
                 <i class="menu-icon tf-icons bx bx-tachometer"></i>
                 <div class="text-truncate">Dashboard</div>
             </a>
         </li>
         <li class="menu-item {{ is_active_menu('admin.isp.subscribers.', true) }}">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
+            <a href="javascript:void(0);" class="menu-link menu-toggle" data-tour="subscribers">
                 <i class="menu-icon tf-icons bx bx-group"></i>
                 <div class="text-truncate">Subscribers</div>
             </a>
@@ -39,13 +39,13 @@
             </ul>
         </li>
         <li class="menu-item {{ is_active_menu('admin.isp.packages.', true) }}">
-            <a href="{{ route('admin.isp.packages.index') }}" class="menu-link">
+            <a href="{{ route('admin.isp.packages.index') }}" class="menu-link" data-tour="packages">
                 <i class="menu-icon tf-icons bx bx-package"></i>
                 <div class="text-truncate">Packages</div>
             </a>
         </li>
         <li class="menu-item {{ is_active_menu('admin.isp.routers.', true) }} {{ is_active_menu('admin.isp.mikrotik_monitor.', true) }}">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
+            <a href="javascript:void(0);" class="menu-link menu-toggle" data-tour="routers">
                 <i class="menu-icon tf-icons bx bx-router"></i>
                 <div class="text-truncate">Routers</div>
             </a>
@@ -59,7 +59,7 @@
             </ul>
         </li>
         <li class="menu-item {{ is_active_menu('admin.isp.payments.', true) }} {{ is_active_menu('admin.isp.ereceipts.', true) }} {{ is_active_menu('admin.isp.sessions.', true) }}">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
+            <a href="javascript:void(0);" class="menu-link menu-toggle" data-tour="payments">
                 <i class="menu-icon tf-icons bx bx-money-withdraw"></i>
                 <div class="text-truncate">Payments</div>
             </a>
@@ -116,7 +116,7 @@
             </ul>
         </li>
         <li class="menu-item {{ is_active_menu('admin.isp.reports.', true) }}">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
+            <a href="javascript:void(0);" class="menu-link menu-toggle" data-tour="reports">
                 <i class="menu-icon tf-icons bx bx-line-chart"></i>
                 <div class="text-truncate">Reports</div>
             </a>
@@ -165,12 +165,18 @@
             </a>
         </li>
         <li class="menu-item {{ is_active_menu('admin.isp.settings.', true) }}">
-            <a href="{{ route('admin.isp.settings.index') }}" class="menu-link">
+            <a href="{{ route('admin.isp.settings.index') }}" class="menu-link" data-tour="settings">
                 <i class="menu-icon tf-icons bx bx-cog"></i>
                 <div class="text-truncate">ISP Settings</div>
             </a>
         </li>
         <li class="menu-header small text-uppercase"><span class="menu-header-text">Account</span></li>
+        <li class="menu-item {{ is_active_menu('admin.notifications.index') }}">
+            <a href="{{ route('admin.notifications.index') }}" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-bell"></i>
+                <div class="text-truncate">Notifications</div>
+            </a>
+        </li>
         <li class="menu-item {{ is_active_menu('admin.profile.index') }}">
             <a href="{{ route('admin.profile.index') }}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-user"></i>

@@ -207,6 +207,34 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
         // Global router status API (used by navbar polling)
         Route::get('routers/status', [\App\Http\Controllers\Admin\MikrotikMonitorController::class, 'routerStatuses'])->name('routers.status');
 
-    });
+        // ── Phase 3: SaaS Enhancements ────────────────────────────────────────
 
+        // Notifications
+        Route::prefix('notifications')->name('admin.notifications.')->controller(\App\Http\Controllers\Tenant\NotificationController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/count', 'count')->name('count');
+            Route::post('/mark-all-read', 'markAllAsRead')->name('mark-all-read');
+            Route::post('/{id}/mark-read', 'markAsRead')->name('mark-read');
+        });
+
+        // Support Chat
+        Route::prefix('support-chat')->name('admin.support-chat.')->controller(\App\Http\Controllers\Tenant\SupportChatController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::get('/messages', 'getMessages')->name('messages');
+        });
+
+        // Pricing / Plans
+        Route::get('pricing', [\App\Http\Controllers\Tenant\PricingController::class, 'currentPlan'])->name('admin.pricing.index');
+
+        // Tour completion tracking
+        Route::post('tour/complete', function () {
+            $admin = auth('admin')->user();
+            if ($admin) {
+                $admin->update(['tour_completed' => true]);
+            }
+            return response()->json(['success' => true]);
+        })->name('admin.tour.complete');
+
+    });
 });

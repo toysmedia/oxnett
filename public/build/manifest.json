@@ -1,4 +1,9 @@
 {
+  "resources/css/dark-mode.css": {
+    "file": "assets/dark-mode-BeZibwg6.css",
+    "src": "resources/css/dark-mode.css",
+    "isEntry": true
+  },
   "resources/js/app.js": {
     "file": "assets/app-DCpUCnV9.js",
     "name": "app",
@@ -7,6 +12,39 @@
     "css": [
       "assets/app-28D6tKPb.css"
     ]
+  },
+  "resources/js/dark-mode.js": {
+    "file": "assets/dark-mode-CH_B9d8_.js",
+    "name": "dark-mode",
+    "src": "resources/js/dark-mode.js",
+    "isEntry": true
+  },
+  "resources/js/notifications-poll.js": {
+    "file": "assets/notifications-poll-6nsrezmD.js",
+    "name": "notifications-poll",
+    "src": "resources/js/notifications-poll.js",
+    "isEntry": true
+  },
+  "resources/js/onboarding-tour.js": {
+    "file": "assets/onboarding-tour-D9NklwG-.js",
+    "name": "onboarding-tour",
+    "src": "resources/js/onboarding-tour.js",
+    "isEntry": true,
+    "css": [
+      "assets/onboarding-tour-TRZluGMH.css"
+    ]
+  },
+  "resources/js/subscription-countdown.js": {
+    "file": "assets/subscription-countdown-B1cEaqF6.js",
+    "name": "subscription-countdown",
+    "src": "resources/js/subscription-countdown.js",
+    "isEntry": true
+  },
+  "resources/js/support-chat.js": {
+    "file": "assets/support-chat-DSsvwqfN.js",
+    "name": "support-chat",
+    "src": "resources/js/support-chat.js",
+    "isEntry": true
   },
   "resources/sass/app.scss": {
     "file": "assets/app-wlGpQ0Zm.css",
