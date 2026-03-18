@@ -55,6 +55,9 @@ class Tenant extends Model
         'status',
         'trial_ends_at',
         'subscription_expires_at',
+        'maintenance_mode',
+        'lat',
+        'lng',
     ];
 
     /** @var array<string, string> Attribute casts. */
@@ -62,6 +65,9 @@ class Tenant extends Model
         'trial_ends_at' => 'datetime',
         'subscription_expires_at' => 'datetime',
         'database_port' => 'integer',
+        'maintenance_mode' => 'boolean',
+        'lat' => 'decimal:7',
+        'lng' => 'decimal:7',
     ];
 
     /** @var array<int, string> Hidden attributes for serialisation. */
