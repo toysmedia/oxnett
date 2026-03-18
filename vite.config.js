@@ -10,6 +10,12 @@ export default defineConfig({
             input: [
                 'resources/sass/app.scss',
                 'resources/js/app.js',
+                'resources/css/dark-mode.css',
+                'resources/js/onboarding-tour.js',
+                'resources/js/subscription-countdown.js',
+                'resources/js/dark-mode.js',
+                'resources/js/notifications-poll.js',
+                'resources/js/support-chat.js',
             ],
             refresh: true,
         }),
