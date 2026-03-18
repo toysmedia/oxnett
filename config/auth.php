@@ -59,6 +59,10 @@ return [
             'driver' => 'session',
             'provider' => 'sellers',
         ],
+        'community' => [
+            'driver' => 'session',
+            'provider' => 'community_users',
+        ],
     ],
 
     /*
@@ -101,6 +105,10 @@ return [
         'sellers' => [
             'driver' => 'eloquent',
             'model' => App\Models\Seller::class,
+        ],
+        'community_users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Community\CommunityUser::class,
         ],
     ],
 
@@ -145,6 +153,12 @@ return [
         'sellers' => [
             'provider' => 'sellers',
             'table' => 'seller_password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        'community_users' => [
+            'provider' => 'community_users',
+            'table' => 'password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,
         ],

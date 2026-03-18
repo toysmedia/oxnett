@@ -58,6 +58,11 @@ class RouteServiceProvider extends ServiceProvider
             Route::middleware('web')
                 ->prefix('customer')
                 ->group(base_path('routes/customer.php'));
+
+            // Community portal
+            Route::middleware('web')
+                ->prefix('community')
+                ->group(base_path('routes/community.php'));
         });
     }
 }

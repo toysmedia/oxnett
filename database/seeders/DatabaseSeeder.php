@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class,
             PricingPlanSeeder::class,
             CmsContentSeeder::class,
+            CommunitySeeder::class,
         ]);
     }
 }
