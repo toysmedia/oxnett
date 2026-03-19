@@ -76,10 +76,10 @@
                         @endif
                     </td>
                     <td>
-                        <a href="{{ route('super-admin.ai.knowledge.edit', $entry->id) }}" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2"><i class="bi bi-pencil"></i></a>
+                        <a href="{{ route('super-admin.ai.knowledge.edit', $entry->id) }}" class="btn btn-outline-primary btn-sm py-0 px-2"><i class="bi bi-pencil"></i></a>
                         <form method="POST" action="{{ route('super-admin.ai.knowledge.delete', $entry->id) }}" class="d-inline" onsubmit="return confirm('Delete this entry?')">
                             @csrf @method('DELETE')
-                            <button class="btn btn-xs btn-outline-danger btn-sm py-0 px-2"><i class="bi bi-trash"></i></button>
+                            <button class="btn btn-outline-danger btn-sm py-0 px-2"><i class="bi bi-trash"></i></button>
                         </form>
                     </td>
                 </tr>
