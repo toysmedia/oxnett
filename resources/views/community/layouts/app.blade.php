@@ -153,5 +153,6 @@
     });
 </script>
 @stack('scripts')
+<x-ai-chat-widget portal="community" />
 </body>
 </html>

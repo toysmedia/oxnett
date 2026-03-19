@@ -92,5 +92,6 @@
 <script src="{{ asset('assets/js/main.js') }}"></script>
 
 @stack('scripts')
+<x-ai-chat-widget portal="guest" />
 </body>
 </html>

@@ -58,6 +58,7 @@
 
 @include('layouts.parts.flash')
 
+<x-ai-chat-widget portal="login" />
 </body>
 </html>
 

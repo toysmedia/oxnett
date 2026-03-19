@@ -209,5 +209,6 @@
 </script>
 
 @stack('scripts')
+<x-ai-chat-widget portal="customer" />
 </body>
 </html>

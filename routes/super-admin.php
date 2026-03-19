@@ -11,6 +11,7 @@ use App\Http\Controllers\SuperAdmin\SuperAdminEmailGatewayController;
 use App\Http\Controllers\SuperAdmin\SuperAdminAuditLogController;
 use App\Http\Controllers\SuperAdmin\SuperAdminRecycleBinController;
 use App\Http\Controllers\SuperAdmin\SuperAdminTenantMapController;
+use App\Http\Controllers\SuperAdmin\AiTrainingController;
 use App\Http\Controllers\SuperAdmin\CommunityModerationController;
 use Illuminate\Support\Facades\Route;
 
@@ -76,6 +77,23 @@ Route::prefix('super-admin')->name('super-admin.')->group(function () {
             Route::delete('/tags/{tag}', [CommunityModerationController::class, 'deleteTag'])->name('tags.destroy');
             Route::get('/announcements', [CommunityModerationController::class, 'announcements'])->name('announcements');
             Route::post('/announcements', [CommunityModerationController::class, 'storeAnnouncement'])->name('announcements.store');
+        });
+
+        // AI Training & Management
+        Route::prefix('ai')->name('ai.')->group(function () {
+            Route::get('/', [AiTrainingController::class, 'index'])->name('index');
+            Route::get('/knowledge', [AiTrainingController::class, 'knowledgeBase'])->name('knowledge');
+            Route::get('/knowledge/create', [AiTrainingController::class, 'createKnowledge'])->name('knowledge.create');
+            Route::post('/knowledge', [AiTrainingController::class, 'storeKnowledge'])->name('knowledge.store');
+            Route::get('/knowledge/{id}/edit', [AiTrainingController::class, 'editKnowledge'])->name('knowledge.edit');
+            Route::put('/knowledge/{id}', [AiTrainingController::class, 'updateKnowledge'])->name('knowledge.update');
+            Route::delete('/knowledge/{id}', [AiTrainingController::class, 'deleteKnowledge'])->name('knowledge.delete');
+            Route::get('/unanswered', [AiTrainingController::class, 'unanswered'])->name('unanswered');
+            Route::post('/unanswered/{id}/resolve', [AiTrainingController::class, 'resolveUnanswered'])->name('unanswered.resolve');
+            Route::post('/unanswered/{id}/dismiss', [AiTrainingController::class, 'dismissUnanswered'])->name('unanswered.dismiss');
+            Route::get('/conversations', [AiTrainingController::class, 'conversations'])->name('conversations');
+            Route::get('/conversations/{id}', [AiTrainingController::class, 'conversationDetail'])->name('conversations.show');
+            Route::get('/reports', [AiTrainingController::class, 'reports'])->name('reports');
         });
     });
 });
