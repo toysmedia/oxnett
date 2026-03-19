@@ -15,7 +15,10 @@
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ asset('assets/img/favicon/favicon.ico') }}" />
 
-    <!-- Fonts -->
+    <!-- DNS prefetch & preconnect for performance -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
@@ -32,11 +35,15 @@
         'resources/sass/app.scss',
         'resources/js/app.js',
         'resources/css/dark-mode.css',
+        'resources/css/responsive.css',
+        'resources/css/print.css',
         'resources/js/dark-mode.js',
         'resources/js/subscription-countdown.js',
         'resources/js/notifications-poll.js',
         'resources/js/support-chat.js',
         'resources/js/onboarding-tour.js',
+        'resources/js/performance.js',
+        'resources/js/scroll-to-top.js',
     ])
 
     @stack('styles')
@@ -102,5 +109,12 @@
 {{-- Onboarding Tour --}}
 @include('components.onboarding-tour')
 
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) { if (window.console && console.warn) console.warn('SW registration failed:', err); });
+    });
+}
+</script>
 </body>
 </html>

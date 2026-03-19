@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Super Admin') - OxNet</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('assets/img/favicon/favicon.ico') }}">
+    <!-- DNS prefetch & preconnect -->
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -79,13 +84,13 @@
 <script>
     const html = document.documentElement;
     const themeIcon = document.getElementById('themeIcon');
-    const savedTheme = localStorage.getItem('sa-theme') || 'light';
+    const savedTheme = localStorage.getItem('oxnet_theme') || 'light';
     html.setAttribute('data-bs-theme', savedTheme);
     themeIcon.className = savedTheme === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
     document.getElementById('themeToggle').addEventListener('click', function () {
         const next = html.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
         html.setAttribute('data-bs-theme', next);
-        localStorage.setItem('sa-theme', next);
+        localStorage.setItem('oxnet_theme', next);
         themeIcon.className = next === 'dark' ? 'bi bi-moon-fill' : 'bi bi-sun-fill';
     });
     document.getElementById('sidebarToggle')?.addEventListener('click', function () {
@@ -93,6 +98,13 @@
     });
 </script>
 @stack('scripts')
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) { if (window.console && console.warn) console.warn('SW registration failed:', err); });
+    });
+}
+</script>
 <x-ai-chat-widget portal="admin" />
 </body>
 </html>

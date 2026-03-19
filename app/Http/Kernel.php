@@ -86,5 +86,6 @@ class Kernel extends HttpKernel
         'community.auth'          => \App\Http\Middleware\CommunityAuth::class,
         'community.verified'      => \App\Http\Middleware\CommunityVerified::class,
         'community.not-banned'    => \App\Http\Middleware\CommunityNotBanned::class,
+        'oxnet.cache'             => \App\Http\Middleware\CacheHeaders::class,
     ];
 }

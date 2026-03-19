@@ -6,6 +6,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Customer Portal') | {{ config('settings.system_general.title', 'OxNet') }}</title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ asset('assets/img/favicon/favicon.ico') }}">
+    <!-- DNS prefetch & preconnect -->
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
     <!-- Bootstrap 5 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
@@ -164,14 +171,14 @@
         icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
     }
 
-    const saved = localStorage.getItem('cp_theme') || 'light';
+    const saved = localStorage.getItem('oxnet_theme') || 'light';
     applyTheme(saved);
 
     if (btn) {
         btn.addEventListener('click', function () {
             const current = html.getAttribute('data-bs-theme');
             const next    = current === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('cp_theme', next);
+            localStorage.setItem('oxnet_theme', next);
             applyTheme(next);
         });
     }
@@ -209,6 +216,13 @@
 </script>
 
 @stack('scripts')
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (err) { if (window.console && console.warn) console.warn('SW registration failed:', err); });
+    });
+}
+</script>
 <x-ai-chat-widget portal="customer" />
 </body>
 </html>
