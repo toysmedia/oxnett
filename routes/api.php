@@ -53,6 +53,7 @@ Route::prefix('customer')->name('api.customer.')->group(function () {
 
 // Router auto-registration callback (called from MikroTik script via /tool fetch)
 // Protected by shared secret via verify_router_secret middleware
+use App\Http\Controllers\Api\AiAssistantController;
 use App\Http\Controllers\Api\RouterCallbackController;
 Route::middleware('verify_router_secret')->post('/router-callback', [RouterCallbackController::class, 'callback']);
 Route::middleware('verify_router_secret')->post('/router-heartbeat', [RouterCallbackController::class, 'heartbeat']);
@@ -62,3 +63,9 @@ Route::middleware('verify_router_secret')->post('/router-phase-complete', [Route
 Route::get('/hotspot-files/{router}/{file}', [\App\Http\Controllers\Admin\RouterController::class, 'serveHotspotFile'])
     ->where('file', 'login\.html|alogin\.html|status\.html')
     ->name('api.hotspot_file');
+
+// AI Assistant API (public, rate-limited)
+Route::prefix('ai')->group(function () {
+    Route::post('/chat', [AiAssistantController::class, 'chat'])->middleware('throttle:20,1');
+    Route::post('/feedback', [AiAssistantController::class, 'feedback']);
+});
