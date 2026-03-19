@@ -19,3 +19,6 @@ yarn-error.log
 .env.test
 .DS_Store
 **/.DS_Store
+
+# SQLite test databases
+storage/framework/testing/*.sqlite

@@ -5,25 +5,25 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Creates the super_admin_users table in the system database.
- * Super admins have full cross-tenant access.
+ * Creates the sellers table in each tenant database.
+ * Sellers / workers authenticate via the 'seller' guard.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('super_admin_users', function (Blueprint $table) {
+        Schema::create('sellers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('password');
-            $table->string('phone')->nullable();
-            $table->string('avatar')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->string('mobile')->nullable();
             $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->boolean('is_active')->default(true);
+            $table->decimal('balance', 10, 2)->default(0);
+            $table->decimal('commission', 10, 2)->default(0);
             $table->rememberToken();
             $table->timestamps();
-            $table->softDeletes();
 
             $table->index('email');
             $table->index('is_active');
@@ -32,6 +32,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('super_admin_users');
+        Schema::dropIfExists('sellers');
     }
 };

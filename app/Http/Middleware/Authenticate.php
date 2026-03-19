@@ -13,7 +13,9 @@ class Authenticate extends Middleware
      */
     protected function redirectTo(Request $request): ?string
     {
-        $prefix = $request->route()->getPrefix();
+        // Normalize the prefix — strip any leading slash so comparisons are consistent.
+        $prefix = ltrim($request->route()->getPrefix() ?? '', '/');
+
         if ($prefix === 'admin') {
             $route_name = 'admin.login';
         } elseif ($prefix === 'seller') {

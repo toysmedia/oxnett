@@ -50,7 +50,7 @@ class SellerAuthTest extends TestCase
         ]);
 
         $response = $this->post('/seller/login', [
-            'email'    => 'seller@test.com',
+            'login'    => 'seller@test.com',
             'password' => 'secret123',
         ]);
 
