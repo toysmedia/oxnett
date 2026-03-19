@@ -161,7 +161,7 @@
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/sw.js').catch(function () {});
+        navigator.serviceWorker.register('/sw.js').catch(function (err) { if (window.console && console.warn) console.warn('SW registration failed:', err); });
     });
 }
 </script>

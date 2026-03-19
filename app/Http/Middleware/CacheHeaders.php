@@ -32,8 +32,13 @@ class CacheHeaders
         'woff2' => 31536000,
         'ttf'   => 31536000,
         'eot'   => 31536000,
-        // Service worker — no cache (must always be fresh)
-        'sw'    => 0,
+    ];
+
+    /**
+     * Paths that must never be cached (e.g. service worker).
+     */
+    protected array $noCachePaths = [
+        '/sw.js',
     ];
 
     /**
@@ -46,13 +51,16 @@ class CacheHeaders
         $path = $request->getPathInfo();
         $ext  = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
+        // Service worker and other paths that must not be cached
+        if (in_array($path, $this->noCachePaths)) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate');
+            return $response;
+        }
+
         if (isset($this->cacheDurations[$ext])) {
             $maxAge = $this->cacheDurations[$ext];
 
-            if ($maxAge === 0) {
-                // No caching for service worker
-                $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate');
-            } elseif ($maxAge >= 31536000) {
+            if ($maxAge >= 31536000) {
                 // Long-lived assets: immutable
                 $response->headers->set('Cache-Control', "public, max-age={$maxAge}, immutable");
             } else {

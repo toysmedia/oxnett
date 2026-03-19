@@ -102,6 +102,7 @@
 
     // Apply initial tile layer based on theme
     let currentLayer = isDarkMode() ? 'dark' : 'streets';
+    let userPickedLayer = false; // tracks whether user manually selected a layer
     tileLayers[currentLayer].addTo(map);
 
     // Marker cluster group
@@ -199,6 +200,7 @@
             map.removeLayer(tileLayers[currentLayer]);
             tileLayers[layer].addTo(map);
             currentLayer = layer;
+            userPickedLayer = true; // user manually selected
             document.querySelectorAll('#layerSwitcher [data-layer]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
         });
@@ -217,14 +219,13 @@
         setTimeout(() => map.invalidateSize(), 200);
     });
 
-    // Auto-switch tile layer when theme changes
+    // Auto-switch tile layer when theme changes (only if user hasn't manually picked a layer)
     const observer = new MutationObserver(function () {
-        const themePref = isDarkMode() ? 'dark' : 'streets';
         const legendDiv = document.getElementById('map-legend');
         if (legendDiv) updateLegendStyle(legendDiv);
-        // Only auto-switch if user hasn't manually picked a layer
-        const activeBtn = document.querySelector('#layerSwitcher .active');
-        if (activeBtn && activeBtn.dataset.layer === currentLayer && currentLayer !== 'satellite') {
+
+        if (!userPickedLayer) {
+            const themePref = isDarkMode() ? 'dark' : 'streets';
             if (themePref !== currentLayer) {
                 map.removeLayer(tileLayers[currentLayer]);
                 tileLayers[themePref].addTo(map);

@@ -64,11 +64,16 @@ self.addEventListener('fetch', (event) => {
     }
 
     // CDN assets (Bootstrap, Font Awesome, etc.): stale-while-revalidate
-    if (url.hostname.includes('cdn.jsdelivr.net') ||
-        url.hostname.includes('cdnjs.cloudflare.com') ||
-        url.hostname.includes('fonts.googleapis.com') ||
-        url.hostname.includes('fonts.gstatic.com') ||
-        url.hostname.includes('unpkg.com')) {
+    // Use exact hostname matching to prevent URL-based bypass attacks
+    const ALLOWED_CDN_HOSTS = new Set([
+        'cdn.jsdelivr.net',
+        'cdnjs.cloudflare.com',
+        'fonts.googleapis.com',
+        'fonts.gstatic.com',
+        'unpkg.com',
+    ]);
+
+    if (ALLOWED_CDN_HOSTS.has(url.hostname)) {
         event.respondWith(staleWhileRevalidate(request, STATIC_CACHE));
         return;
     }

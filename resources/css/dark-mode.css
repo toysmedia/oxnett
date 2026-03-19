@@ -4,9 +4,18 @@
  * Covers all portals: admin, super-admin, customer, community, auth, errors.
  */
 
-/* ── Global smooth transition when toggling themes ────────────── */
-*, *::before, *::after {
-    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
+/* ── Smooth transitions only on theme-sensitive properties ──────── */
+body,
+.card, .card-body, .card-header, .card-footer,
+.navbar, nav, #sidebar, #topbar, #layout-menu, .layout-menu,
+.layout-navbar, #layout-navbar, .community-navbar, #cp-navbar,
+.modal-content, .offcanvas, .offcanvas-body, .offcanvas-header,
+.dropdown-menu, .dropdown-item,
+.table, .table td, .table th, .table thead th,
+.form-control, .form-select,
+.page-link, .badge,
+footer, .sidebar-widget {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
 }
 
 /* Exclude transitions on elements that shouldn't animate */

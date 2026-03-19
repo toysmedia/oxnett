@@ -3,26 +3,20 @@
  * Breakpoints: 320px, 375px, 576px, 768px, 992px, 1200px
  */
 
-/* ── Base: ensure tap targets ────────────────────────────────── */
-a,
-button,
+/* ── Base: ensure tap targets (WCAG 2.5.5) ───────────────────── */
 .btn,
 .nav-link,
-.dropdown-item,
+.page-link,
 input[type="submit"],
 input[type="button"],
-label[for],
-.page-link {
+input[type="reset"] {
     min-height: 44px;
-    display: inline-flex;
-    align-items: center;
 }
 
-/* Reset for inline elements that shouldn't be flex */
-.badge, .tag-badge, .expiry-badge {
+/* Inline buttons and links don't need height constraint */
+a:not(.btn):not(.nav-link):not(.page-link),
+button:not(.btn) {
     min-height: unset;
-    display: inline-block;
-    align-items: unset;
 }
 
 /* ── Images: lazy loading & responsive ───────────────────────── */
