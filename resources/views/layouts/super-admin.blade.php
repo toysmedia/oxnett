@@ -45,6 +45,8 @@
         <a href="{{ route('super-admin.tenant-map.index') }}" class="nav-link {{ request()->routeIs('super-admin.tenant-map.*') ? 'active' : '' }}"><i class="bi bi-map"></i> Tenant Map</a>
         <div class="nav-section">Community</div>
         <a href="{{ route('super-admin.community.dashboard') }}" class="nav-link {{ request()->routeIs('super-admin.community.*') ? 'active' : '' }}"><i class="bi bi-people"></i> Community Portal</a>
+        <div class="nav-section">AI Assistant</div>
+        <a href="{{ route('super-admin.ai.index') }}" class="nav-link {{ request()->routeIs('super-admin.ai.*') ? 'active' : '' }}"><i class="bi bi-robot"></i> AI Assistant</a>
     </nav>
 </div>
 <div id="main-content">
@@ -91,5 +93,6 @@
     });
 </script>
 @stack('scripts')
+<x-ai-chat-widget portal="admin" />
 </body>
 </html>

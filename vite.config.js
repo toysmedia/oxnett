@@ -16,6 +16,7 @@ export default defineConfig({
                 'resources/js/dark-mode.js',
                 'resources/js/notifications-poll.js',
                 'resources/js/support-chat.js',
+                'resources/js/ai-chat.js',
             ],
             refresh: true,
         }),

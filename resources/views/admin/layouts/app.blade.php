@@ -104,5 +104,6 @@
 {{-- Onboarding Tour --}}
 @include('components.onboarding-tour')
 
+<x-ai-chat-widget portal="admin" />
 </body>
 </html>
