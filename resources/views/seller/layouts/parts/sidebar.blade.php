@@ -78,7 +78,7 @@
         </li>
 
         <li class="menu-item">
-            <a href="javascript:void(0);" class="menu-link logout-button">
+            <a href="javascript:void(0);" class="menu-link" onclick="event.preventDefault(); if(confirm('Are you sure you want to logout?')) document.getElementById('logout-form').submit();">
                 <i class="menu-icon tf-icons bx bx-power-off"></i>
                 <div class="text-truncate" data-i18n="Basic">Logout</div>
             </a>

@@ -34,45 +34,49 @@
             position: fixed;
             top: 0; left: 0; right: 0;
             z-index: 1050;
-            transition: background .35s ease, box-shadow .35s ease, backdrop-filter .35s ease;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            transition: box-shadow .25s ease;
             padding: 0;
         }
-        .ox-pub-nav.ox-nav-transparent {
-            background: transparent;
-        }
-        .ox-pub-nav.ox-nav-solid {
-            background: rgba(15, 14, 42, 0.92);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            box-shadow: 0 2px 20px rgba(0,0,0,.25);
+        .ox-pub-nav.ox-nav-scrolled {
+            box-shadow: 0 2px 12px rgba(0,0,0,.08);
         }
         .ox-pub-nav .navbar-brand { display: flex; align-items: center; gap: 10px; }
         .ox-pub-nav .navbar-brand img { max-height: 38px; width: auto; }
-        .ox-pub-nav .ox-brand-icon { font-size: 2rem; color: #a78bfa; line-height: 1; }
+        .ox-pub-nav .ox-brand-icon { font-size: 2rem; color: #4f46e5; line-height: 1; }
         .ox-pub-nav .ox-brand-text {
             font-size: 1.15rem;
             font-weight: 800;
-            color: #fff;
+            color: #111827;
             letter-spacing: -.3px;
         }
         .ox-pub-nav .nav-link {
-            color: rgba(255,255,255,.78) !important;
-            font-size: .85rem;
+            color: #374151 !important;
+            font-size: .88rem;
             font-weight: 500;
-            padding: 6px 10px !important;
+            padding: 6px 12px !important;
             transition: color .2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
         }
-        .ox-pub-nav .nav-link:hover { color: #fff !important; }
+        .ox-pub-nav .nav-link:hover { color: #4f46e5 !important; }
+        .ox-pub-nav .ox-nav-btn {
+            background: #4f46e5;
+            color: #fff !important;
+            border-radius: 6px;
+            padding: 8px 18px !important;
+            font-weight: 600;
+        }
+        .ox-pub-nav .ox-nav-btn:hover {
+            background: #3730a3;
+            color: #fff !important;
+        }
         .ox-pub-nav .navbar-toggler {
-            border: 1.5px solid rgba(255,255,255,.35);
+            border: 1.5px solid #e5e7eb;
             padding: 5px 8px;
             border-radius: 8px;
         }
         .ox-pub-nav .navbar-toggler-icon {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(255,255,255,0.85)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(0,0,0,0.65)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
         }
 
         /* ── Public Footer ── */
@@ -103,7 +107,7 @@
 <body>
 
 <!-- Navigation Bar -->
-<nav class="ox-pub-nav ox-nav-transparent navbar navbar-expand-lg" id="oxPubNav">
+<nav class="ox-pub-nav navbar navbar-expand-lg" id="oxPubNav">
     <div class="container">
         <a class="navbar-brand" href="{{ url('/') }}">
             @if(config('settings.system_general.logo_path'))
@@ -119,18 +123,12 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
                 <li class="nav-item">
-                    <a class="nav-link" href="tel:{{ config('settings.system_general.contact_no', '') }}">
-                        <i class="bx bxs-phone" style="color:#a78bfa;"></i>
-                        {{ config('settings.system_general.contact_no', '+254 700 000 000') }}
-                    </a>
+                    <a class="nav-link" href="{{ route('login') }}">Customer Portal</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="mailto:{{ config('settings.system_general.contact_email', '') }}">
-                        <i class="bx bx-envelope" style="color:#a78bfa;"></i>
-                        {{ config('settings.system_general.contact_email', 'support@oxnet.co.ke') }}
-                    </a>
+                    <a class="nav-link ox-nav-btn" href="{{ route('admin.login') }}">Admin Login</a>
                 </li>
             </ul>
         </div>
@@ -195,11 +193,9 @@
     if (!nav) return;
     function updateNav() {
         if (window.scrollY > 40) {
-            nav.classList.remove('ox-nav-transparent');
-            nav.classList.add('ox-nav-solid');
+            nav.classList.add('ox-nav-scrolled');
         } else {
-            nav.classList.remove('ox-nav-solid');
-            nav.classList.add('ox-nav-transparent');
+            nav.classList.remove('ox-nav-scrolled');
         }
     }
     updateNav();

@@ -121,7 +121,7 @@
                     </li>
                     <li><div class="dropdown-divider my-1"></div></li>
                     <li>
-                        <a class="dropdown-item logout-button" href="javascript:void(0);">
+                        <a class="dropdown-item" href="javascript:void(0);" onclick="event.preventDefault(); if(confirm('Are you sure you want to logout?')) document.getElementById('logout-form').submit();">
                             <i class="bx bx-power-off bx-md me-3"></i><span>Log Out</span>
                         </a>
                     </li>
