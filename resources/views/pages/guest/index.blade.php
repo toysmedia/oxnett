@@ -737,7 +737,7 @@
         <div class="row g-4 align-items-center justify-content-center">
             <div class="col-6 col-sm-3 ox-reveal">
                 <div class="ox-stat-item">
-                    <div class="ox-stat-number" data-target="500">500+</div>
+                    <div class="ox-stat-number">500+</div>
                     <div class="ox-stat-label">ISPs Managed</div>
                 </div>
             </div>
