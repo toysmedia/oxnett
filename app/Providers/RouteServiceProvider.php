@@ -46,11 +46,8 @@ class RouteServiceProvider extends ServiceProvider
                 ->name('seller.')
                 ->group(base_path('routes/seller.php'));
 
-            // Super Admin dashboard (admin.oxnet.co.ke)
-            Route::middleware('web')
-                ->prefix('superadmin')
-                ->group(base_path('routes/superadmin.php'));
-
+            // Super Admin dashboard — canonical route file is super-admin.php
+            // routes/superadmin.php was a legacy skeleton and has been consolidated here.
             Route::middleware('web')
                 ->group(base_path('routes/super-admin.php'));
 
