@@ -1,7 +1,33 @@
 /*
- * OxNet Admin — Dark Mode Stylesheet
- * Applied when [data-theme="dark"] is set on <html> element.
+ * OxNet — Unified Dark Mode Stylesheet
+ * Applied when [data-theme="dark"] OR [data-bs-theme="dark"] is set on <html>.
+ * Covers all portals: admin, super-admin, customer, community, auth, errors.
  */
+
+/* ── Global smooth transition when toggling themes ────────────── */
+*, *::before, *::after {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
+}
+
+/* Exclude transitions on elements that shouldn't animate */
+img, video, canvas, svg {
+    transition: none !important;
+}
+
+/* ── CSS custom properties shared by Bootstrap dark mode ─────── */
+[data-bs-theme="dark"] {
+    --oxnet-bg-body:        #1a1d2b;
+    --oxnet-bg-card:        #232639;
+    --oxnet-bg-sidebar:     #1e2130;
+    --oxnet-bg-navbar:      #1e2130;
+    --oxnet-bg-input:       #2a2d3e;
+    --oxnet-bg-hover:       #2f3248;
+    --oxnet-text-primary:   #e4e6f0;
+    --oxnet-text-muted:     #8892a4;
+    --oxnet-text-heading:   #ffffff;
+    --oxnet-border-color:   #2e3248;
+    --oxnet-accent:         #4f7ef8;
+}
 
 [data-theme="dark"] {
     /* ── Background layers ─────────────────────────────────────── */
@@ -205,4 +231,160 @@
     background-color: var(--oxnet-accent) !important;
     border-color: var(--oxnet-accent) !important;
     color: #fff !important;
+}
+
+/* ── Error/Auth pages dark mode ───────────────────────────────── */
+[data-theme="dark"] .misc-wrapper,
+[data-bs-theme="dark"] .misc-wrapper {
+    color: var(--oxnet-text-primary) !important;
+}
+
+/* ── Super-admin portal dark navbar ──────────────────────────── */
+[data-bs-theme="dark"] #topbar {
+    background: #1e2130 !important;
+    border-color: var(--oxnet-border-color) !important;
+}
+
+/* ── Customer portal dark navbar ─────────────────────────────── */
+[data-bs-theme="dark"] #cp-navbar,
+[data-bs-theme="dark"] .navbar {
+    background-color: #1a1d2b !important;
+    border-color: var(--oxnet-border-color) !important;
+}
+
+[data-bs-theme="dark"] .navbar .nav-link {
+    color: rgba(228,230,240,.8) !important;
+}
+
+[data-bs-theme="dark"] .navbar .nav-link:hover,
+[data-bs-theme="dark"] .navbar .nav-link.active {
+    color: #fff !important;
+}
+
+/* ── Community dark navbar ───────────────────────────────────── */
+[data-bs-theme="dark"] .community-navbar {
+    background: #111827 !important;
+}
+
+/* ── Footer dark mode ────────────────────────────────────────── */
+[data-bs-theme="dark"] footer,
+[data-theme="dark"] footer {
+    border-color: var(--oxnet-border-color) !important;
+    color: var(--oxnet-text-muted) !important;
+}
+
+/* ── AI chat widget dark mode ────────────────────────────────── */
+[data-theme="dark"] .ai-chat-widget,
+[data-bs-theme="dark"] .ai-chat-widget {
+    background-color: var(--oxnet-bg-card) !important;
+    border-color: var(--oxnet-border-color) !important;
+    color: var(--oxnet-text-primary) !important;
+}
+
+[data-theme="dark"] .ai-chat-messages,
+[data-bs-theme="dark"] .ai-chat-messages {
+    background-color: var(--oxnet-bg-body) !important;
+}
+
+[data-theme="dark"] .ai-chat-input,
+[data-bs-theme="dark"] .ai-chat-input {
+    background-color: var(--oxnet-bg-input) !important;
+    border-color: var(--oxnet-border-color) !important;
+    color: var(--oxnet-text-primary) !important;
+}
+
+/* ── Leaflet map dark overlay ────────────────────────────────── */
+[data-theme="dark"] .leaflet-container,
+[data-bs-theme="dark"] .leaflet-container {
+    background: #1a1d2b !important;
+}
+
+[data-theme="dark"] .leaflet-popup-content-wrapper,
+[data-bs-theme="dark"] .leaflet-popup-content-wrapper {
+    background-color: var(--oxnet-bg-card) !important;
+    color: var(--oxnet-text-primary) !important;
+    border: 1px solid var(--oxnet-border-color) !important;
+}
+
+[data-theme="dark"] .leaflet-popup-tip,
+[data-bs-theme="dark"] .leaflet-popup-tip {
+    background-color: var(--oxnet-bg-card) !important;
+}
+
+[data-theme="dark"] .leaflet-control,
+[data-bs-theme="dark"] .leaflet-control {
+    background-color: var(--oxnet-bg-card) !important;
+    color: var(--oxnet-text-primary) !important;
+    border-color: var(--oxnet-border-color) !important;
+}
+
+[data-theme="dark"] .leaflet-bar a,
+[data-bs-theme="dark"] .leaflet-bar a {
+    background-color: var(--oxnet-bg-card) !important;
+    color: var(--oxnet-text-primary) !important;
+    border-color: var(--oxnet-border-color) !important;
+}
+
+/* ── Scroll to top button ────────────────────────────────────── */
+#scroll-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #4f7ef8;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(79,126,248,.4);
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+#scroll-to-top.visible {
+    display: flex;
+}
+
+#scroll-to-top:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(79,126,248,.5);
+}
+
+[data-theme="dark"] #scroll-to-top,
+[data-bs-theme="dark"] #scroll-to-top {
+    background: var(--oxnet-accent);
+}
+
+/* ── Focus states for accessibility ─────────────────────────── */
+:focus-visible {
+    outline: 2px solid #4f7ef8 !important;
+    outline-offset: 2px !important;
+}
+
+/* ── Smooth scrolling globally ───────────────────────────────── */
+html {
+    scroll-behavior: smooth;
+}
+
+/* ── Loading skeleton ────────────────────────────────────────── */
+.skeleton {
+    background: linear-gradient(90deg, #e8e8e8 25%, #f5f5f5 50%, #e8e8e8 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] .skeleton,
+[data-bs-theme="dark"] .skeleton {
+    background: linear-gradient(90deg, #2a2d3e 25%, #3a3d4e 50%, #2a2d3e 75%);
+    background-size: 200% 100%;
+}
+
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
