@@ -2,6 +2,7 @@
 @section('title', 'Installation')
 
 @section('content')
+<div class="container">
     @php
         $step = session()->get('step') ?? 1;
     @endphp
@@ -181,6 +182,7 @@
         </div>
     </div>
     <!-- /Installation -->
+</div>
 
 @endsection
 

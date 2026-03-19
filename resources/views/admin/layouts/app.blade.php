@@ -36,7 +36,6 @@
         'resources/js/subscription-countdown.js',
         'resources/js/notifications-poll.js',
         'resources/js/support-chat.js',
-        'resources/js/onboarding-tour.js',
     ])
 
     <link rel="stylesheet" href="{{ asset('assets/css/custom-improvements.css') }}" />
@@ -96,14 +95,16 @@
 <script src="{{ asset('assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js') }}"></script>
 <script src="{{ asset('assets/vendor/js/menu.js') }}"></script>
 <script src="{{ asset('assets/js/main.js') }}"></script>
-
-@stack('scripts')
-
-@include('admin.layouts.parts.flash')
+<script src="{{ asset('assets/js/onboarding-tour.js') }}" defer></script>
 
 {{-- Onboarding Tour --}}
 @include('components.onboarding-tour')
 
 <x-ai-chat-widget portal="admin" />
+
+@stack('scripts')
+
+@include('admin.layouts.parts.flash')
+
 </body>
 </html>

@@ -69,9 +69,7 @@
     </div>
 </div>
 
-@push('scripts')
 @vite(['resources/js/ai-chat.js'])
-@endpush
 
 <style>
 .ai-dot { animation: ai-blink 1.4s infinite both; font-size:.6rem; margin:0 1px; }

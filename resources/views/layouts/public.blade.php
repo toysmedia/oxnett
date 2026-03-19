@@ -74,8 +74,8 @@
     </div>
 </nav>
 
-<!-- Services Section -->
-<div class="container">
+<!-- Content -->
+<div class="flex-grow-1">
     @yield('content')
 </div>
 

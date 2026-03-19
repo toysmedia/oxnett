@@ -37,7 +37,7 @@ class NotificationController extends Controller
 
         $unreadCount = TenantNotification::unread()->count();
 
-        return view('tenant.notifications.index', compact('notifications', 'unreadCount', 'filter'));
+        return view('admin.pages.notifications.index', compact('notifications', 'unreadCount', 'filter'));
     }
 
     /**
