@@ -210,7 +210,7 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
         // ── Phase 3: SaaS Enhancements ────────────────────────────────────────
 
         // Notifications
-        Route::prefix('notifications')->name('admin.notifications.')->controller(\App\Http\Controllers\Tenant\NotificationController::class)->group(function () {
+        Route::prefix('notifications')->name('notifications.')->controller(\App\Http\Controllers\Tenant\NotificationController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::get('/count', 'count')->name('count');
             Route::post('/mark-all-read', 'markAllAsRead')->name('mark-all-read');
@@ -218,14 +218,14 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
         });
 
         // Support Chat
-        Route::prefix('support-chat')->name('admin.support-chat.')->controller(\App\Http\Controllers\Tenant\SupportChatController::class)->group(function () {
+        Route::prefix('support-chat')->name('support-chat.')->controller(\App\Http\Controllers\Tenant\SupportChatController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
             Route::get('/messages', 'getMessages')->name('messages');
         });
 
         // Pricing / Plans
-        Route::get('pricing', [\App\Http\Controllers\Tenant\PricingController::class, 'currentPlan'])->name('admin.pricing.index');
+        Route::get('pricing', [\App\Http\Controllers\Tenant\PricingController::class, 'currentPlan'])->name('pricing.index');
 
         // Tour completion tracking
         Route::post('tour/complete', function () {
@@ -234,7 +234,7 @@ Route::get('/provision/{token}', [\App\Http\Controllers\Admin\RouterController::
                 $admin->update(['tour_completed' => true]);
             }
             return response()->json(['success' => true]);
-        })->name('admin.tour.complete');
+        })->name('tour.complete');
 
     });
 });

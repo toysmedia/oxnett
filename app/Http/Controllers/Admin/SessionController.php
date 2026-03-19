@@ -14,7 +14,7 @@ class SessionController extends Controller
             ->orderBy('acctstarttime', 'desc')
             ->paginate(50);
 
-        $routers = Router::pluck('name', 'wan_ip');
+        $routers = Router::select('id', 'name')->get();
 
         return view('admin.isp.sessions.index', compact('sessions', 'routers'));
     }
