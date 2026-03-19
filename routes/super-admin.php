@@ -11,6 +11,7 @@ use App\Http\Controllers\SuperAdmin\SuperAdminEmailGatewayController;
 use App\Http\Controllers\SuperAdmin\SuperAdminAuditLogController;
 use App\Http\Controllers\SuperAdmin\SuperAdminRecycleBinController;
 use App\Http\Controllers\SuperAdmin\SuperAdminTenantMapController;
+use App\Http\Controllers\SuperAdmin\CommunityModerationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('super-admin')->name('super-admin.')->group(function () {
@@ -52,5 +53,29 @@ Route::prefix('super-admin')->name('super-admin.')->group(function () {
         Route::delete('recycle-bin/{id}', [SuperAdminRecycleBinController::class, 'destroy'])->name('recycle-bin.destroy');
 
         Route::get('tenant-map', [SuperAdminTenantMapController::class, 'index'])->name('tenant-map.index');
+
+        // Community Moderation
+        Route::prefix('community')->name('community.')->group(function () {
+            Route::get('/', [CommunityModerationController::class, 'dashboard'])->name('dashboard');
+            Route::get('/posts', [CommunityModerationController::class, 'posts'])->name('posts');
+            Route::post('/posts/{post}/approve', [CommunityModerationController::class, 'approvePost'])->name('posts.approve');
+            Route::post('/posts/{post}/reject', [CommunityModerationController::class, 'rejectPost'])->name('posts.reject');
+            Route::post('/posts/{post}/pin', [CommunityModerationController::class, 'pinPost'])->name('posts.pin');
+            Route::post('/posts/{post}/feature', [CommunityModerationController::class, 'featurePost'])->name('posts.feature');
+            Route::post('/posts/{post}/lock', [CommunityModerationController::class, 'lockPost'])->name('posts.lock');
+            Route::get('/users', [CommunityModerationController::class, 'users'])->name('users');
+            Route::post('/users/{user}/ban', [CommunityModerationController::class, 'banUser'])->name('users.ban');
+            Route::post('/users/{user}/unban', [CommunityModerationController::class, 'unbanUser'])->name('users.unban');
+            Route::get('/reports', [CommunityModerationController::class, 'reports'])->name('reports');
+            Route::post('/reports/{report}/review', [CommunityModerationController::class, 'reviewReport'])->name('reports.review');
+            Route::get('/categories', [CommunityModerationController::class, 'categories'])->name('categories');
+            Route::post('/categories', [CommunityModerationController::class, 'storeCategory'])->name('categories.store');
+            Route::put('/categories/{category}', [CommunityModerationController::class, 'updateCategory'])->name('categories.update');
+            Route::post('/categories/{category}/toggle', [CommunityModerationController::class, 'toggleCategory'])->name('categories.toggle');
+            Route::get('/tags', [CommunityModerationController::class, 'tags'])->name('tags');
+            Route::delete('/tags/{tag}', [CommunityModerationController::class, 'deleteTag'])->name('tags.destroy');
+            Route::get('/announcements', [CommunityModerationController::class, 'announcements'])->name('announcements');
+            Route::post('/announcements', [CommunityModerationController::class, 'storeAnnouncement'])->name('announcements.store');
+        });
     });
 });

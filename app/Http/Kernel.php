@@ -83,5 +83,8 @@ class Kernel extends HttpKernel
         // Customer portal middleware
         'customer.portal.enabled' => \App\Http\Middleware\CustomerPortalEnabled::class,
         'customer.active'         => \App\Http\Middleware\CustomerSubscriptionActive::class,
+        'community.auth'          => \App\Http\Middleware\CommunityAuth::class,
+        'community.verified'      => \App\Http\Middleware\CommunityVerified::class,
+        'community.not-banned'    => \App\Http\Middleware\CommunityNotBanned::class,
     ];
 }

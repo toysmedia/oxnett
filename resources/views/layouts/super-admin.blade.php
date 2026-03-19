@@ -43,6 +43,8 @@
         <a href="{{ route('super-admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('super-admin.audit-logs.*') ? 'active' : '' }}"><i class="bi bi-journal-text"></i> Audit Logs</a>
         <a href="{{ route('super-admin.recycle-bin.index') }}" class="nav-link {{ request()->routeIs('super-admin.recycle-bin.*') ? 'active' : '' }}"><i class="bi bi-trash3"></i> Recycle Bin</a>
         <a href="{{ route('super-admin.tenant-map.index') }}" class="nav-link {{ request()->routeIs('super-admin.tenant-map.*') ? 'active' : '' }}"><i class="bi bi-map"></i> Tenant Map</a>
+        <div class="nav-section">Community</div>
+        <a href="{{ route('super-admin.community.dashboard') }}" class="nav-link {{ request()->routeIs('super-admin.community.*') ? 'active' : '' }}"><i class="bi bi-people"></i> Community Portal</a>
     </nav>
 </div>
 <div id="main-content">
