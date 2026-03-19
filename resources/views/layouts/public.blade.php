@@ -10,7 +10,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
 
     <link rel="stylesheet" href="{{ asset('assets/vendor/fonts/boxicons.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/vendor/css/core.css') }}" class="template-customizer-core-css" />
@@ -25,49 +25,112 @@
     @stack('styles')
 
     <style>
-        a.nav-link i{
-            border: 2px solid white;
-            border-radius: 15px;
-            padding: 3px;
+        html, body { height: 100%; }
+        body { display: flex; flex-direction: column; min-height: 100vh; }
+        .ox-pub-content { flex: 1 0 auto; }
+
+        /* ── Public Navbar ── */
+        .ox-pub-nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1050;
+            transition: background .35s ease, box-shadow .35s ease, backdrop-filter .35s ease;
+            padding: 0;
         }
-        html, body {
-            height: 100%;
+        .ox-pub-nav.ox-nav-transparent {
+            background: transparent;
         }
-        /* Create a flex container */
-        .d-flex {
-            flex-direction: column;
-            min-height: 100vh;
+        .ox-pub-nav.ox-nav-solid {
+            background: rgba(15, 14, 42, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 2px 20px rgba(0,0,0,.25);
         }
-        /* Push the footer to the bottom */
-        .footer {
-            margin-top: auto;
+        .ox-pub-nav .navbar-brand { display: flex; align-items: center; gap: 10px; }
+        .ox-pub-nav .navbar-brand img { max-height: 38px; width: auto; }
+        .ox-pub-nav .ox-brand-icon { font-size: 2rem; color: #a78bfa; line-height: 1; }
+        .ox-pub-nav .ox-brand-text {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -.3px;
+        }
+        .ox-pub-nav .nav-link {
+            color: rgba(255,255,255,.78) !important;
+            font-size: .85rem;
+            font-weight: 500;
+            padding: 6px 10px !important;
+            transition: color .2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .ox-pub-nav .nav-link:hover { color: #fff !important; }
+        .ox-pub-nav .navbar-toggler {
+            border: 1.5px solid rgba(255,255,255,.35);
+            padding: 5px 8px;
+            border-radius: 8px;
+        }
+        .ox-pub-nav .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(255,255,255,0.85)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+        }
+
+        /* ── Public Footer ── */
+        .ox-pub-footer {
+            background: #0f0e2a;
+            color: rgba(255,255,255,.55);
+            padding: 40px 0 28px;
+            flex-shrink: 0;
+        }
+        .ox-pub-footer .ox-footer-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .ox-pub-footer .ox-footer-brand img { max-height: 32px; width: auto; filter: brightness(1.2); }
+        .ox-pub-footer .ox-footer-brand-icon { font-size: 1.6rem; color: #a78bfa; }
+        .ox-pub-footer .ox-footer-brand-text { font-size: 1rem; font-weight: 800; color: #fff; }
+        .ox-pub-footer .ox-footer-tagline { font-size: .82rem; line-height: 1.55; margin-bottom: 0; }
+        .ox-pub-footer .ox-footer-divider { border-color: rgba(255,255,255,.08); margin: 28px 0 20px; }
+        .ox-pub-footer .ox-footer-copy { font-size: .8rem; }
+        .ox-pub-footer .ox-footer-copy a { color: #a78bfa; text-decoration: none; }
+        .ox-pub-footer .ox-footer-copy a:hover { text-decoration: underline; }
+        .ox-pub-footer .ox-footer-links { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: flex-end; }
+        .ox-pub-footer .ox-footer-links a { font-size: .8rem; color: rgba(255,255,255,.45); text-decoration: none; transition: color .2s; }
+        .ox-pub-footer .ox-footer-links a:hover { color: #a78bfa; }
+
+        @media (max-width: 767.98px) {
+            .ox-pub-footer .ox-footer-links { justify-content: flex-start; margin-top: 12px; }
         }
     </style>
-
 </head>
-<body class="d-flex flex-column">
+<body>
 
 <!-- Navigation Bar -->
-<nav class="navbar navbar-expand-lg navbar-light" style="background: #46A6D8;box-shadow: 1px 2px 5px 1px #646e78;">
+<nav class="ox-pub-nav ox-nav-transparent navbar navbar-expand-lg" id="oxPubNav">
     <div class="container">
         <a class="navbar-brand" href="{{ url('/') }}">
             @if(config('settings.system_general.logo_path'))
-                <img class="w-100" src="{{ asset('storage/' . config('settings.system_general.logo_path')) }}">
+                <img src="{{ asset('storage/' . config('settings.system_general.logo_path')) }}"
+                     alt="{{ config('settings.system_general.title', 'OxNet') }}">
             @else
-                <i class='bx bx-station text-white' style="font-size: 35px;vertical-align: sub;"></i>
-                <span class="app-brand-text demo menu-text fw-bold ms-2 text-white">{{ config('settings.system_general.logo_text', 'iNetto') }}</span>
+                <i class="bx bx-station ox-brand-icon"></i>
+                <span class="ox-brand-text">{{ config('settings.system_general.logo_text', 'OxNet') }}</span>
             @endif
         </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item my-2">
-                    <a class="nav-link text-white fw-bold d-inline" aria-current="page" href="tel:{{ config('settings.system_general.contact_no', '01712345678') }}"><i style="font-size: 1rem;" class='bx bxs-phone me-1'></i> {{ config('settings.system_general.contact_no', '+8801712345678') }}</a>
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+                <li class="nav-item">
+                    <a class="nav-link" href="tel:{{ config('settings.system_general.contact_no', '') }}">
+                        <i class="bx bxs-phone" style="color:#a78bfa;"></i>
+                        {{ config('settings.system_general.contact_no', '+254 700 000 000') }}
+                    </a>
                 </li>
-                <li class="nav-item my-2">
-                    <a class="nav-link text-white fw-bold d-inline" aria-current="page" href="mailto:{{ config('settings.system_general.contact_email', 'info@inetto.com') }}"><i style="font-size: 1rem;" class='bx bx-envelope me-1'></i> {{ config('settings.system_general.contact_email', 'info@inetto.com') }}</a>
+                <li class="nav-item">
+                    <a class="nav-link" href="mailto:{{ config('settings.system_general.contact_email', '') }}">
+                        <i class="bx bx-envelope" style="color:#a78bfa;"></i>
+                        {{ config('settings.system_general.contact_email', 'support@oxnet.co.ke') }}
+                    </a>
                 </li>
             </ul>
         </div>
@@ -75,13 +138,48 @@
 </nav>
 
 <!-- Content -->
-<div class="flex-grow-1">
+<div class="ox-pub-content">
     @yield('content')
 </div>
 
 <!-- Footer -->
-<footer class="bg-light text-center py-5 footer">
-    <p class="mb-0">{!! config('settings.system_general.copyright', 'Developed By <a href="https://codexwp.com" target="_blank" class="footer-link">CodeXwp</a>') !!}</p>
+<footer class="ox-pub-footer">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="ox-footer-brand">
+                    @if(config('settings.system_general.logo_path'))
+                        <img src="{{ asset('storage/' . config('settings.system_general.logo_path')) }}"
+                             alt="{{ config('settings.system_general.title', 'OxNet') }}">
+                    @else
+                        <i class="bx bx-station ox-footer-brand-icon"></i>
+                        <span class="ox-footer-brand-text">{{ config('settings.system_general.logo_text', 'OxNet') }}</span>
+                    @endif
+                </div>
+                <p class="ox-footer-tagline">
+                    Premium ISP management SaaS for Kenyan internet service providers.
+                </p>
+            </div>
+        </div>
+        <hr class="ox-footer-divider">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <p class="ox-footer-copy mb-0">
+                    {!! config('settings.system_general.copyright', 'Developed by <a href="https://codexwp.com" target="_blank">CodeXwp</a>') !!}
+                </p>
+            </div>
+            <div class="col-md-6">
+                <div class="ox-footer-links">
+                    <a href="{{ route('admin.login') }}">Admin</a>
+                    <a href="{{ route('login') }}">Customer</a>
+                    <a href="{{ route('seller.login') }}">Seller</a>
+                    @if(Route::has('community.login'))
+                        <a href="{{ route('community.login') }}">Community</a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
 </footer>
 
 <script src="{{ asset('assets/vendor/libs/jquery/jquery.js') }}"></script>
@@ -90,6 +188,24 @@
 <script src="{{ asset('assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js') }}"></script>
 <script src="{{ asset('assets/vendor/js/menu.js') }}"></script>
 <script src="{{ asset('assets/js/main.js') }}"></script>
+
+<script>
+(function () {
+    var nav = document.getElementById('oxPubNav');
+    if (!nav) return;
+    function updateNav() {
+        if (window.scrollY > 40) {
+            nav.classList.remove('ox-nav-transparent');
+            nav.classList.add('ox-nav-solid');
+        } else {
+            nav.classList.remove('ox-nav-solid');
+            nav.classList.add('ox-nav-transparent');
+        }
+    }
+    updateNav();
+    window.addEventListener('scroll', updateNav, { passive: true });
+})();
+</script>
 
 @stack('scripts')
 <x-ai-chat-widget portal="guest" />

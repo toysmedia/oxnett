@@ -122,7 +122,11 @@ let menu, animate;
  $(document).ready(function (){
 
      $(".logout-button").click(function (){
-         confirmModal(logout, '', 'Are you sure to logout?', '');
+         if (typeof confirmModal === 'function') {
+             confirmModal(logout, '', 'Are you sure to logout?', '');
+         } else if (confirm('Are you sure to logout?')) {
+             logout();
+         }
      });
 
      function logout() {
