@@ -26,11 +26,19 @@ class AppServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-
+        //
     }
 
     public function boot(): void
     {
+        // Register migration paths for subdirectories.
+        // These contain system-level (super admin, tenants, community, AI) and
+        // per-tenant schema migrations that are separate from the core app tables.
+        $this->loadMigrationsFrom([
+            database_path('migrations/system'),
+            database_path('migrations/tenant'),
+        ]);
+
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
         }

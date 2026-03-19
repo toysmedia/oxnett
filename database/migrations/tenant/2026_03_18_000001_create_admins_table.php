@@ -5,33 +5,31 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Creates the super_admin_users table in the system database.
- * Super admins have full cross-tenant access.
+ * Creates the admins table in each tenant database.
+ * Tenant admin users authenticate via the 'admin' guard.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('super_admin_users', function (Blueprint $table) {
+        Schema::create('admins', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('password');
-            $table->string('phone')->nullable();
-            $table->string('avatar')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->string('mobile')->nullable();
             $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->boolean('tour_completed')->default(false);
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index('email');
-            $table->index('is_active');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('super_admin_users');
+        Schema::dropIfExists('admins');
     }
 };

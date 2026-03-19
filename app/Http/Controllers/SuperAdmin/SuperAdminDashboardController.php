@@ -25,9 +25,15 @@ class SuperAdminDashboardController extends Controller
         $recentPayments = SubscriptionPayment::with(['tenant', 'plan'])
             ->latest()->take(10)->get();
 
+        // Use a DB-portable date-truncation expression.
+        // MySQL → DATE_FORMAT, SQLite → strftime (used in the test environment).
+        $dateFormat = config('database.connections.' . config('database.default') . '.driver') === 'sqlite'
+            ? "strftime('%Y-%m', created_at)"
+            : "DATE_FORMAT(created_at, '%Y-%m')";
+
         $monthlyRevenue = SubscriptionPayment::where('status', 'completed')
             ->where('created_at', '>=', now()->subMonths(12))
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, SUM(amount) as total")
+            ->selectRaw("{$dateFormat} as month, SUM(amount) as total")
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('total', 'month');

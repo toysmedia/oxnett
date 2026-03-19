@@ -1,78 +1,169 @@
+# OxNet — Multi-Tenant ISP Management SaaS
 
-# iNettotik — Kenyan ISP Billing System
+**OxNet** is a production-ready, multi-tenant ISP management SaaS platform for Kenyan WISPs built on Laravel 10. It provides a complete white-label solution: each ISP gets their own isolated subdomain, database, branding, and customer portal.
 
-**iNettotik** is a production-ready, large-scale ISP billing system for Kenyan WISPs (Wireless Internet Service Providers) built on Laravel 10. It integrates FreeRADIUS 3.x, MikroTik RouterOS v6.49+/v7.x, M-Pesa Daraja API, and Africa's Talking SMS.
+> Previously known as iNettotik. Now evolved into a full multi-tenant SaaS platform.
 
-> Built on top of the original iNetto codebase with full ISP billing extensions.
+---
 
-## ✨ ISP Billing Features
+## 🏗️ Architecture
 
-| Feature | Details |
-|---------|---------|
-| **Multi-Router Support** | Unlimited routers, one-click MikroTik `.rsc` script generation |
-| **FreeRADIUS Integration** | Same MySQL DB — radcheck, radreply, radacct, nas tables |
-| **PPPoE + Hotspot** | Simultaneous support, both via RADIUS auth |
-| **M-Pesa Daraja** | STK Push + C2B Paybill, auto-provisioning after payment |
-| **Hotspot Login Pages** | Dark-themed, M-Pesa reference login, downloadable as ZIP |
-| **Africa's Talking SMS** | Voucher delivery after payment |
-| **Subscriber Management** | 10,000+ users, bulk actions, expiry management |
-| **Live Sessions** | Real-time radacct monitoring, admin disconnect |
-| **Reseller Module** | Commission-based reseller management |
-| **Customer Portal** | Self-service package purchase and renewal |
-| **Audit Logging** | Kenya Data Protection Act ready |
+| Layer | Technology |
+|-------|-----------|
+| Backend | Laravel 10, PHP 8.1+ |
+| Frontend | Bootstrap 5, Vite, Alpine.js |
+| Database | MySQL 8 (system DB + per-tenant DB) |
+| RADIUS | FreeRADIUS 3.x (shared tables) |
+| Payments | M-Pesa Daraja (STK Push + C2B) |
+| SMS | Africa's Talking |
+| AI | OpenAI GPT-4o-mini (Knowledge Base + fallback) |
+| Queue | Redis + Laravel Horizon |
+
+---
+
+## ✨ Feature Overview
+
+### Super Admin (Platform Owner)
+- Multi-tenant management: create, suspend, activate ISP tenants
+- Subscription billing: per-tenant plans with M-Pesa payment
+- Pricing plan management (Starter, Growth, Enterprise)
+- CMS for public landing page content
+- Global SMS & email gateway configuration
+- Community portal moderation
+- AI knowledge base training & analytics
+- Tenant map (geo-located ISPs across Kenya)
+- Audit logs
+
+### Admin Tenant Portal (ISP Owner)
+- Router management with one-click MikroTik script generation
+- Subscriber (PPPoE/Hotspot) management — 10,000+ users
+- FreeRADIUS integration (radcheck, radreply, radacct, nas)
+- M-Pesa payment auto-provisioning
+- Worker/Seller management with permission system
+- Live session monitoring & admin disconnect
+- Expense tracking & reporting
+- Support ticket management
+- Bulk SMS campaigns
+- Customer portal toggle
+
+### PPPoE Customer Portal (End Users)
+- Self-service package view & renewal via M-Pesa
+- Payment history with e-receipts
+- Support ticket creation
+- Profile management
+
+### Community Portal (ISP Professionals)
+- Forum with threaded replies, likes, follows
+- Categories: General, Technical Help, MikroTik Tips, Billing, etc.
+- Tags: pppoe, mikrotik, mpesa, fiber, etc.
+- Reputation system, moderation, content reporting
+- Full-text search
+
+### Workers / Sellers
+- Commission-based reseller management
+- Customer creation & payment collection
+- Package assignment
+
+---
 
 ## 🚀 Quick Start
 
 ```bash
 # Clone and install
-git clone https://github.com/toysmedia/iNettotik.git
-cd iNettotik
+git clone https://github.com/toysmedia/oxnett.git
+cd oxnett
+
 composer install
 npm install && npm run build
+
 cp .env.example .env
 php artisan key:generate
 
-# Configure database and M-Pesa in .env
+# Create system DB, configure .env, then:
 php artisan migrate
-php artisan storage:link
+php artisan db:seed
 
-# Setup cron for user expiry
-* * * * * cd /var/www/iNettotik && php artisan schedule:run >> /dev/null 2>&1
+# Seed test credentials (dev only)
+php artisan db:seed --class=TestDataSeeder
+
+php artisan serve
 ```
 
-## 📖 Documentation
-
-- [Installation Guide](docs/installation.md) — Full Ubuntu 22.04 setup
-- [FreeRADIUS SQL Config](docs/freeradius-sql-config.md) — Connect FreeRADIUS to Laravel DB
-
-## 🔑 Key URLs
-
-| URL | Description |
-|-----|-------------|
-| `/admin/isp/dashboard` | ISP admin dashboard |
-| `/admin/isp/routers` | Router management + script generation |
-| `/admin/isp/subscribers` | Subscriber management |
-| `/admin/isp/sessions` | Live RADIUS sessions |
-| `/admin/isp/payments` | M-Pesa payment history |
-| `/buy` | Public package purchase page |
-| `/customer/dashboard` | Customer self-service portal |
-| `/api/mpesa/stk-callback` | Safaricom STK Push webhook |
-| `/api/mpesa/c2b-confirmation` | Safaricom C2B webhook |
-
-## 🌐 M-Pesa Flow
-
-1. Customer visits `/buy` → selects package → enters phone
-2. STK Push sent to phone → customer enters M-Pesa PIN
-3. Safaricom calls `/api/mpesa/stk-callback` webhook
-4. System auto-provisions FreeRADIUS entry (hotspot voucher or PPPoE extension)
-5. SMS sent with voucher code (hotspot) or confirmation (PPPoE)
-
-## 📡 MikroTik Setup
-
-1. Add router in **Admin → ISP → Routers**
-2. Click **"Generate Script"** → copy/download the `.rsc` file
-3. Paste into MikroTik Terminal (Winbox or SSH)
-4. Click **"Download Hotspot Files"** → upload ZIP to `/hotspot` folder in MikroTik
+Visit `http://localhost:8000/super-admin/login` — use `superadmin@oxnet.co.ke` / `password`.
 
 ---
 
+## 🔑 Key URLs
+
+| Portal | URL | Notes |
+|--------|-----|-------|
+| **Super Admin** | `/super-admin/login` | Platform owner |
+| **Admin Dashboard** | `/admin/isp/dashboard` | Tenant ISP admin |
+| **Admin Login** | `/admin/login` | — |
+| **Customer Portal** | `/customer/dashboard` | PPPoE self-service |
+| **Community** | `/community` | Open forum |
+| **Seller Portal** | `/seller/login` | Workers/Sellers |
+| M-Pesa STK Callback | `/api/mpesa/stk-callback` | Safaricom webhook |
+| M-Pesa C2B Confirm | `/api/mpesa/c2b-confirmation` | Safaricom webhook |
+
+---
+
+## 📖 Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [Installation Guide](docs/INSTALLATION.md) | Local dev + production server setup |
+| [Testing Guide](docs/TESTING.md) | Automated tests + manual testing checklists |
+| [Architecture Guide](docs/ARCHITECTURE.md) | System design, DB schema, auth matrix |
+| [CyberPanel Deployment](docs/cyberpanel-deployment.md) | CyberPanel-specific setup |
+| [FreeRADIUS Config](docs/freeradius-sql-config.md) | FreeRADIUS ↔ Laravel DB setup |
+
+---
+
+## 🧪 Running Tests
+
+```bash
+# Run the full test suite (uses SQLite in-memory — no MySQL required)
+php artisan test
+
+# Run only auth flow tests
+php artisan test tests/Feature/Auth/
+
+# Run only dashboard tests
+php artisan test tests/Feature/Dashboard/
+```
+
+---
+
+## 🗺️ M-Pesa Flow
+
+1. Customer visits `/customer/payments/renew` → selects package → enters phone
+2. STK Push sent → customer enters M-Pesa PIN on their phone
+3. Safaricom calls `/api/mpesa/stk-callback` (IP-verified)
+4. System auto-provisions FreeRADIUS + MikroTik PPPoE secret
+5. SMS confirmation sent via Africa's Talking
+
+---
+
+## 📡 MikroTik Setup
+
+1. Add router in **Admin → Routers**
+2. Click **"Generate Script"** → download the `.rsc` file
+3. Paste into MikroTik Terminal (Winbox or SSH)
+4. For hotspot: click **"Download Hotspot Files"** → upload ZIP to `/hotspot` on MikroTik
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feat/my-feature`
+3. Write tests for your changes
+4. Run `php artisan test` — all tests must pass
+5. Submit a pull request
+
+---
+
+## 📄 License
+
+Proprietary — © ToyMedia. All rights reserved.

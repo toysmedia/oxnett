@@ -43,7 +43,16 @@ return [
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
         ],
 
-        'mysql' => [
+        'mysql' => env('DB_CONNECTION') === 'sqlite' ? [
+            // In the SQLite test environment, point the system 'mysql' connection
+            // to the SAME SQLite file as the default connection so that system-level
+            // models (SuperAdmin, Tenant, CommunityUser, etc.) share the same tables
+            // as tenant-level models and RefreshDatabase manages them all together.
+            'driver'   => 'sqlite',
+            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'prefix'   => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ] : [
             'driver' => 'mysql',
             'url' => env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -64,7 +73,14 @@ return [
         ],
 
         // Dynamically configured per request by ResolveTenant middleware
-        'tenant' => [
+        'tenant' => env('DB_CONNECTION') === 'sqlite' ? [
+            // In the SQLite test environment, the tenant connection uses the same
+            // default SQLite file as the 'sqlite' connection.
+            'driver'   => 'sqlite',
+            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'prefix'   => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ] : [
             'driver' => 'mysql',
             'host' => env('TENANT_DB_HOST', env('DB_HOST', '127.0.0.1')),
             'port' => env('TENANT_DB_PORT', env('DB_PORT', '3306')),
