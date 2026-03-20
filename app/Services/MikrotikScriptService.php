@@ -309,7 +309,7 @@ class MikrotikScriptService
         $L[] = '    name="iNettotik-AutoUpdate" \\';
         $L[] = '    interval=1d \\';
         $L[] = '    start-time=03:00:00 \\';
-        $L[] = '    on-event=("/tool fetch url=\"' . $ctx['provisionUrl'] . '\" dst-path=\"' . $ctx['scriptFilename'] . '\"; /import ' . $ctx['scriptFilename'] . '") \\';
+        $L[] = '    on-event=("/tool fetch url=\"' . $ctx['provisionUrl'] . '\" dst-path=\"' . $ctx['scriptFilename'] . '\" check-certificate=no; /import ' . $ctx['scriptFilename'] . '") \\';
         $L[] = '    comment="iNettotik: auto-fetch and apply latest config from billing server"';
         $L[] = '';
 
@@ -421,9 +421,7 @@ class MikrotikScriptService
         return [
             '# --- RADIUS Client ---',
             '/radius remove [find]',
-            "/radius add address={$ctx['wgServerPingIp']} \\",
-            "    secret=\"{$ctx['radiusSecret']}\" \\",
-            '    service=ppp,hotspot,login',
+            "/radius add address={$ctx['wgServerPingIp']} secret=\"{$ctx['radiusSecret']}\" service=ppp,hotspot,login",
             '/radius incoming set accept=yes port=3799',
             '',
         ];
@@ -470,9 +468,9 @@ class MikrotikScriptService
             '# --- Auto-Download Hotspot Files ---',
             ":local hotspotBaseUrl \"{$ctx['hotspotBaseUrl']}\"",
             ':do {',
-            '    /tool fetch url=($hotspotBaseUrl . "/login.html") dst-path="hotspot/login.html"',
-            '    /tool fetch url=($hotspotBaseUrl . "/alogin.html") dst-path="hotspot/alogin.html"',
-            '    /tool fetch url=($hotspotBaseUrl . "/status.html") dst-path="hotspot/status.html"',
+            '    /tool fetch url=($hotspotBaseUrl . "/login.html") dst-path="hotspot/login.html" check-certificate=no',
+            '    /tool fetch url=($hotspotBaseUrl . "/alogin.html") dst-path="hotspot/alogin.html" check-certificate=no',
+            '    /tool fetch url=($hotspotBaseUrl . "/status.html") dst-path="hotspot/status.html" check-certificate=no',
             '    :put "Hotspot HTML files downloaded successfully."',
             '} on-error={',
             '    :put "WARNING: Could not download hotspot files. Upload them manually."',
@@ -503,7 +501,7 @@ class MikrotikScriptService
 
         $L[] = '# --- Firewall Rules ---';
         $L[] = '';
-        $L[] = '# Allow established/related connections (required for /tool fetch responses)';
+        $L[] = '# Allow established/related connections';
         $L[] = '/ip firewall filter remove [find comment="ISP-ALLOW-ESTABLISHED"]';
         $L[] = '/ip firewall filter add chain=input \\';
         $L[] = '    connection-state=established,related action=accept \\';
@@ -599,12 +597,21 @@ class MikrotikScriptService
             '/system scheduler add name="iNettotik-Heartbeat" interval=5m \\',
             '    on-event={',
             '        :do {',
-            "            /tool fetch url=\"{$ctx['tunnelHeartbeatUrl']}\" \\",
+            "            /tool fetch url=\"{$ctx['heartbeatUrl']}\" \\",
             '                http-method=post \\',
             "                http-header-field=\"Content-Type: application/json{$secretHeader}\" \\",
             '                http-data=("{\"router_name\":\"" . [/system identity get name] . "\"}") \\',
+            '                check-certificate=no \\',
             '                output=none',
-            '        } on-error={}',
+            '        } on-error={',
+            '            :do {',
+            "                /tool fetch url=\"{$ctx['tunnelHeartbeatUrl']}\" \\",
+            '                    http-method=post \\',
+            "                    http-header-field=\"Content-Type: application/json{$secretHeader}\" \\",
+            '                    http-data=("{\"router_name\":\"" . [/system identity get name] . "\"}") \\',
+            '                    output=none',
+            '            } on-error={}',
+            '        }',
             '    } \\',
             '    comment="iNettotik: billing server keepalive"',
             '',
@@ -637,21 +644,22 @@ class MikrotikScriptService
         $tunnelCallbackUrl = $ctx['tunnelCallbackUrl'];
         $publicCallbackUrl = $ctx['callbackUrl'];
 
-        // Always try the WireGuard tunnel URL first (faster, avoids firewall).
-        // For Phase 1, also provide a public-URL fallback in case WG isn't fully
-        // established yet when the callback runs.
-        $callbackUrl = $tunnelCallbackUrl;
-        $fallbackUrl = ($phase === 1) ? $publicCallbackUrl : null;
+        // Use the public HTTPS URL as primary for all phases (check-certificate=no
+        // bypasses MikroTik's lack of CA certificates). Keep the tunnel URL as a
+        // fallback for phases 2 & 3 in case the WAN is temporarily unreachable.
+        $callbackUrl = $publicCallbackUrl;
+        $fallbackUrl = ($phase >= 2) ? $tunnelCallbackUrl : null;
 
         $L[] = "# --- Phase {$phase} Callback ---";
         $L[] = ':do {';
         $L[] = '    :local wanIP ""';
-        $L[] = "    :do { :set wanIP [/ip address get [find interface=\"{$wanIface}\"] address] } on-error={}";
-        $L[] = '    :do { :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]] } on-error={}';
-        $L[] = "    :if (\$wanIP = \"\") do={";
-        $L[] = "        :do { :set wanIP [/ip dhcp-client get [find interface=\"{$wanIface}\"] address] } on-error={}";
-        $L[] = '        :do { :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]] } on-error={}';
-        $L[] = '    }';
+        $L[] = '    :do {';
+        $L[] = "        :local addrIds [/ip address find interface=\"{$wanIface}\"]";
+        $L[] = '        :if ([:len $addrIds] > 0) do={';
+        $L[] = '            :set wanIP [/ip address get [:pick $addrIds 0] address]';
+        $L[] = '            :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]]';
+        $L[] = '        }';
+        $L[] = '    } on-error={}';
         $L[] = '    :local vpnIP ""';
         $L[] = '    :do { :set vpnIP [/ip address get [find interface="wg-billing"] address] } on-error={}';
         $L[] = '    :do { :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]] } on-error={}';
@@ -664,6 +672,7 @@ class MikrotikScriptService
         $L[] = '        http-method=post \\';
         $L[] = "        http-header-field=\"Content-Type: application/json{$secretHeader}\" \\";
         $L[] = '        http-data=$cbData \\';
+        $L[] = '        check-certificate=no \\';
         $L[] = '        output=none';
         $L[] = '    :put ("  WAN IP:     " . $wanIP)';
         $L[] = '    :put ("  VPN IP:     " . $vpnIP)';
@@ -671,7 +680,7 @@ class MikrotikScriptService
 
         if ($fallbackUrl !== null) {
             $L[] = '} on-error={';
-            $L[] = "    :put \"Tunnel callback failed, retrying via public URL...\"";
+            $L[] = "    :put \"Public callback failed, retrying via tunnel...\"";
             $L[] = '    :do {';
             $L[] = "        /tool fetch url=\"{$fallbackUrl}\" \\";
             $L[] = '            http-method=post \\';
