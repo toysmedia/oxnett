@@ -576,6 +576,12 @@ class MikrotikScriptService
 
     protected function buildHeartbeat(array $ctx): array
     {
+        $secretHeader = '';
+        $callbackSecret = config('app.router_callback_secret', '');
+        if (!empty($callbackSecret)) {
+            $secretHeader = ",X-Router-Secret: {$callbackSecret}";
+        }
+
         return [
             '# --- Persistent Heartbeat (every 5 minutes) ---',
             '/system scheduler remove [find name="iNettotik-Heartbeat"]',
@@ -584,7 +590,7 @@ class MikrotikScriptService
             '        :do {',
             "            /tool fetch url=\"{$ctx['heartbeatUrl']}\" \\",
             '                http-method=post \\',
-            '                http-header-field="Content-Type: application/json" \\',
+            "                http-header-field=\"Content-Type: application/json{$secretHeader}\" \\",
             '                http-data=("{\"router_name\":\"" . [/system identity get name] . "\"}") \\',
             '                output=none',
             '        } on-error={}',
@@ -616,29 +622,41 @@ class MikrotikScriptService
         }
 
         $wanIface = $ctx['wanIface'];
+        $callbackUrl = $ctx['callbackUrl'];
+        $routerName  = $ctx['routerName'];
         $L[] = "# --- Phase {$phase} Callback ---";
         $L[] = ':local wanIP ""';
-        $L[] = ":do { :set wanIP [/ip address get [find interface=\"{$wanIface}\"] address] } on-error={}";
-        $L[] = ':do { :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]] } on-error={}';
+        $L[] = ':do {';
+        $L[] = "    :set wanIP [/ip address get [find interface=\"{$wanIface}\"] address]";
+        $L[] = '} on-error={}';
+        $L[] = ':do {';
+        $L[] = '    :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]]';
+        $L[] = '} on-error={}';
         $L[] = '';
         $L[] = ':local vpnIP ""';
-        $L[] = ':do { :set vpnIP [/ip address get [find interface="wg-billing"] address] } on-error={}';
-        $L[] = ':do { :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]] } on-error={}';
+        $L[] = ':do {';
+        $L[] = '    :set vpnIP [/ip address get [find interface="wg-billing"] address]';
+        $L[] = '} on-error={}';
+        $L[] = ':do {';
+        $L[] = '    :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]]';
+        $L[] = '} on-error={}';
         $L[] = '';
         $L[] = ':local routerPubKey ""';
-        $L[] = ':do { :set routerPubKey [/interface wireguard get [find name="wg-billing"] public-key] } on-error={}';
+        $L[] = ':do {';
+        $L[] = '    :set routerPubKey [/interface wireguard get [find name="wg-billing"] public-key]';
+        $L[] = '} on-error={}';
         $L[] = '';
         $L[] = ':do {';
-        $L[] = '    /tool fetch url=$callbackURL \\';
+        $L[] = "    /tool fetch url=\"{$callbackUrl}\" \\";
         $L[] = '        http-method=post \\';
         $L[] = "        http-header-field=\"Content-Type: application/json{$secretHeader}\" \\";
-        $L[] = "        http-data=(\"{\\\"router_name\\\":\\\"\" . \$routerName . \"\\\",\\\"wan_ip\\\":\\\"\" . \$wanIP . \"\\\",\\\"vpn_ip\\\":\\\"\" . \$vpnIP . \"\\\",\\\"wg_public_key\\\":\\\"\" . \$routerPubKey . \"\\\",\\\"phase\\\":{$phase}}\") \\";
+        $L[] = "        http-data=(\"{\\\"router_name\\\":\\\"{$routerName}\\\",\\\"wan_ip\\\":\\\"\" . \$wanIP . \"\\\",\\\"vpn_ip\\\":\\\"\" . \$vpnIP . \"\\\",\\\"wg_public_key\\\":\\\"\" . \$routerPubKey . \"\\\",\\\"phase\\\":{$phase}}\") \\";
         $L[] = '        output=none';
         $L[] = '    :put "  WAN IP:     $wanIP"';
         $L[] = '    :put "  VPN IP:     $vpnIP"';
         $L[] = '    :put "  WG PubKey:  $routerPubKey"';
         $L[] = '} on-error={';
-        $L[] = "    :put \"WARNING: Could not reach billing server at \$callbackURL\"";
+        $L[] = "    :put \"WARNING: Could not reach billing server at {$callbackUrl}\"";
         $L[] = '    :put "  WAN IP:    $wanIP"';
         $L[] = '    :put "  VPN IP:    $vpnIP"';
         $L[] = '    :put "  WG PubKey: $routerPubKey"';
