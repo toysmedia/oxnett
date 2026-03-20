@@ -61,6 +61,12 @@ return [
 
     'router_callback_secret' => env('ROUTER_CALLBACK_SECRET'),
 
+    'billing_domain' => env('BILLING_DOMAIN', ''),
+
+    'wan_interface' => env('WAN_INTERFACE', 'ether1'),
+
+    'management_ips' => env('MANAGEMENT_IPS', '192.168.88.1,10.0.0.1'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

@@ -7,9 +7,11 @@ use App\Models\Nas;
 use App\Models\AuditLog;
 use App\Models\IspSetting;
 use App\Services\MikrotikScriptService;
+use App\Services\WireGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use ZipArchive;
 
 class RouterController extends Controller
@@ -88,7 +90,7 @@ class RouterController extends Controller
         $data['is_active'] = $request->boolean('is_active', true);
         $router->update($data);
 
-        if ($router->wan_ip) {
+        if ($router->vpn_ip || $router->wan_ip) {
             $this->syncNas($router);
         }
 
@@ -101,8 +103,21 @@ class RouterController extends Controller
     public function destroy(Router $router)
     {
         AuditLog::record('router.deleted', Router::class, $router->id, $router->toArray(), []);
-        if ($router->wan_ip) {
-            Nas::where('nasname', $router->wan_ip)->delete();
+        $nasIp = $router->vpn_ip ?: $router->wan_ip;
+        if ($nasIp) {
+            Nas::where('nasname', $nasIp)->delete();
+        }
+        // Remove WireGuard peer from server if key is known
+        if ($router->wg_public_key) {
+            try {
+                app(WireGuardService::class)->removePeer($router->wg_public_key);
+            } catch (\Throwable $e) {
+                Log::error('RouterController: failed to remove WireGuard peer on delete', [
+                    'router_id'  => $router->id,
+                    'public_key' => $router->wg_public_key,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
         }
         $router->delete();
         return redirect()->route('admin.isp.routers.index')->with('success', 'Router deleted.');
@@ -219,8 +234,9 @@ class RouterController extends Controller
             'error'             => null,
         ];
 
-        // Check RADIUS/NAS table
-        $result['radius_configured'] = Nas::where('nasname', $router->wan_ip)->exists();
+        // Check RADIUS/NAS table — use vpn_ip (with fallback to wan_ip) to match syncNas
+        $nasIp = $router->vpn_ip ?: $router->wan_ip;
+        $result['radius_configured'] = $nasIp ? Nas::where('nasname', $nasIp)->exists() : false;
 
         // Prefer VPN IP (WireGuard tunnel) over WAN IP
         $ip      = $router->vpn_ip ?: $router->wan_ip;
@@ -342,8 +358,12 @@ class RouterController extends Controller
 
     protected function syncNas(Router $router): void
     {
+        $nasIp = $router->vpn_ip ?: $router->wan_ip;
+        if (!$nasIp) {
+            return;
+        }
         Nas::updateOrCreate(
-            ['nasname' => $router->wan_ip],
+            ['nasname' => $nasIp],
             [
                 'shortname'   => $router->name,
                 'type'        => 'mikrotik',
