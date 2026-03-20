@@ -57,11 +57,12 @@ class RouterCallbackController extends Controller
         // Auto-register WireGuard peer on the server when we receive a public key.
         // Use the router's authoritative vpn_ip from the DB (set by the server on creation),
         // not the client-provided value, to prevent IP spoofing.
+        $wgSuccess = false;
         if ($newWgKey) {
             $vpnIp = $router->fresh()->vpn_ip;
             if ($vpnIp && filter_var($vpnIp, FILTER_VALIDATE_IP)) {
                 try {
-                    app(WireGuardService::class)->addPeer($newWgKey, "{$vpnIp}/32");
+                    $wgSuccess = app(WireGuardService::class)->addPeer($newWgKey, "{$vpnIp}/32");
                 } catch (\Throwable $e) {
                     Log::error('Router callback: failed to register WireGuard peer', [
                         'router_id'  => $router->id,
@@ -98,10 +99,11 @@ class RouterCallbackController extends Controller
         ]);
 
         return response()->json([
-            'status'          => 'success',
-            'message'         => 'Router registered successfully',
-            'router_id'       => $router->id,
-            'provision_phase' => $router->provision_phase,
+            'status'              => 'success',
+            'message'             => 'Router registered successfully',
+            'router_id'           => $router->id,
+            'provision_phase'     => $router->provision_phase,
+            'wg_peer_registered'  => $wgSuccess,
         ]);
     }
 
