@@ -97,10 +97,12 @@ class MikrotikScriptService
         $wgPort           = $this->resolveWgPort();
         $wgEndpoint       = $this->resolveWgEndpoint();
 
-        $callbackUrl      = rtrim(config('app.url'), '/') . '/api/router-callback';
-        $heartbeatUrl     = rtrim(config('app.url'), '/') . '/api/router-heartbeat';
-        $phaseCompleteUrl = rtrim(config('app.url'), '/') . '/api/router-phase-complete';
-        $provisionUrl     = rtrim(config('app.url'), '/') . '/admin/provision/' . $router->ref_code;
+        $callbackUrl        = rtrim(config('app.url'), '/') . '/api/router-callback';
+        $heartbeatUrl       = rtrim(config('app.url'), '/') . '/api/router-heartbeat';
+        $phaseCompleteUrl   = rtrim(config('app.url'), '/') . '/api/router-phase-complete';
+        $provisionUrl       = rtrim(config('app.url'), '/') . '/admin/provision/' . $router->ref_code;
+        $tunnelCallbackUrl  = 'http://' . self::WG_SERVER_TUNNEL_IP . '/api/router-callback';
+        $tunnelHeartbeatUrl = 'http://' . self::WG_SERVER_TUNNEL_IP . '/api/router-heartbeat';
 
         $routerName = preg_replace('/[^a-zA-Z0-9\-]/', '-', (string) $router->name);
         $routerName = preg_replace('/-{2,}/', '-', $routerName);
@@ -138,6 +140,7 @@ class MikrotikScriptService
         return compact(
             'billingServerIp', 'billingPublicKey', 'wgPort', 'wgEndpoint',
             'callbackUrl', 'heartbeatUrl', 'phaseCompleteUrl', 'provisionUrl',
+            'tunnelCallbackUrl', 'tunnelHeartbeatUrl',
             'routerName', 'billingDomain',
             'wanIface', 'customerIface',
             'pppoePoolRange', 'hotspotPoolRange', 'radiusSecret',
@@ -418,7 +421,9 @@ class MikrotikScriptService
         return [
             '# --- RADIUS Client ---',
             '/radius remove [find]',
-            "/radius add address={$ctx['wgServerPingIp']} secret=\"{$ctx['radiusSecret']}\" service=ppp,hotspot,login",
+            "/radius add address={$ctx['wgServerPingIp']} \\",
+            "    secret=\"{$ctx['radiusSecret']}\" \\",
+            '    service=ppp,hotspot,login',
             '/radius incoming set accept=yes port=3799',
             '',
         ];
@@ -500,7 +505,9 @@ class MikrotikScriptService
         $L[] = '';
         $L[] = '# Allow established/related connections (required for /tool fetch responses)';
         $L[] = '/ip firewall filter remove [find comment="ISP-ALLOW-ESTABLISHED"]';
-        $L[] = '/ip firewall filter add chain=input connection-state=established,related action=accept comment="ISP-ALLOW-ESTABLISHED" place-before=0';
+        $L[] = '/ip firewall filter add chain=input \\';
+        $L[] = '    connection-state=established,related action=accept \\';
+        $L[] = '    comment="ISP-ALLOW-ESTABLISHED" place-before=0';
         $L[] = '';
         $L[] = '# Drop invalid connections';
         $L[] = '/ip firewall filter remove [find comment="ISP-DROP-INVALID"]';
@@ -592,7 +599,7 @@ class MikrotikScriptService
             '/system scheduler add name="iNettotik-Heartbeat" interval=5m \\',
             '    on-event={',
             '        :do {',
-            "            /tool fetch url=\"{$ctx['heartbeatUrl']}\" \\",
+            "            /tool fetch url=\"{$ctx['tunnelHeartbeatUrl']}\" \\",
             '                http-method=post \\',
             "                http-header-field=\"Content-Type: application/json{$secretHeader}\" \\",
             '                http-data=("{\"router_name\":\"" . [/system identity get name] . "\"}") \\',
@@ -625,9 +632,16 @@ class MikrotikScriptService
             $secretHeader = ",X-Router-Secret: {$callbackSecret}";
         }
 
-        $wanIface    = $ctx['wanIface'];
-        $callbackUrl = $ctx['callbackUrl'];
-        $routerName  = $ctx['routerName'];
+        $wanIface         = $ctx['wanIface'];
+        $routerName       = $ctx['routerName'];
+        $tunnelCallbackUrl = $ctx['tunnelCallbackUrl'];
+        $publicCallbackUrl = $ctx['callbackUrl'];
+
+        // Always try the WireGuard tunnel URL first (faster, avoids firewall).
+        // For Phase 1, also provide a public-URL fallback in case WG isn't fully
+        // established yet when the callback runs.
+        $callbackUrl = $tunnelCallbackUrl;
+        $fallbackUrl = ($phase === 1) ? $publicCallbackUrl : null;
 
         $L[] = "# --- Phase {$phase} Callback ---";
         $L[] = ':do {';
@@ -643,16 +657,35 @@ class MikrotikScriptService
         $L[] = '    :do { :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]] } on-error={}';
         $L[] = '    :local routerPubKey ""';
         $L[] = '    :do { :set routerPubKey [/interface wireguard get [find name="wg-billing"] public-key] } on-error={}';
+        $L[] = "    :local cbData \"{\\\"router_name\\\":\\\"{$routerName}\\\",\\\"wan_ip\\\":\\\"\"";
+        $L[] = '    :set cbData ($cbData . $wanIP . "\",\"vpn_ip\":\"" . $vpnIP)';
+        $L[] = "    :set cbData (\$cbData . \"\\\",\\\"wg_public_key\\\":\\\"\" . \$routerPubKey . \"\\\",\\\"phase\\\":{$phase}}\")";
         $L[] = "    /tool fetch url=\"{$callbackUrl}\" \\";
         $L[] = '        http-method=post \\';
         $L[] = "        http-header-field=\"Content-Type: application/json{$secretHeader}\" \\";
-        $L[] = "        http-data=(\"{\\\"router_name\\\":\\\"{$routerName}\\\",\\\"wan_ip\\\":\\\"\" . \$wanIP . \"\\\",\\\"vpn_ip\\\":\\\"\" . \$vpnIP . \"\\\",\\\"wg_public_key\\\":\\\"\" . \$routerPubKey . \"\\\",\\\"phase\\\":{$phase}}\") \\";
+        $L[] = '        http-data=$cbData \\';
         $L[] = '        output=none';
         $L[] = '    :put ("  WAN IP:     " . $wanIP)';
         $L[] = '    :put ("  VPN IP:     " . $vpnIP)';
         $L[] = '    :put ("  WG PubKey:  " . $routerPubKey)';
-        $L[] = '} on-error={';
-        $L[] = "    :put \"WARNING: Could not reach billing server at {$callbackUrl}\"";
+
+        if ($fallbackUrl !== null) {
+            $L[] = '} on-error={';
+            $L[] = "    :put \"Tunnel callback failed, retrying via public URL...\"";
+            $L[] = '    :do {';
+            $L[] = "        /tool fetch url=\"{$fallbackUrl}\" \\";
+            $L[] = '            http-method=post \\';
+            $L[] = "            http-header-field=\"Content-Type: application/json{$secretHeader}\" \\";
+            $L[] = '            http-data=$cbData \\';
+            $L[] = '            output=none';
+            $L[] = '    } on-error={';
+            $L[] = "        :put \"WARNING: Could not reach billing server at {$fallbackUrl}\"";
+            $L[] = '    }';
+        } else {
+            $L[] = '} on-error={';
+            $L[] = "    :put \"WARNING: Could not reach billing server at {$callbackUrl}\"";
+        }
+
         $L[] = '}';
         $L[] = '';
         return $L;
