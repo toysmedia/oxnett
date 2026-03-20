@@ -498,6 +498,10 @@ class MikrotikScriptService
 
         $L[] = '# --- Firewall Rules ---';
         $L[] = '';
+        $L[] = '# Allow established/related connections (required for /tool fetch responses)';
+        $L[] = '/ip firewall filter remove [find comment="ISP-ALLOW-ESTABLISHED"]';
+        $L[] = '/ip firewall filter add chain=input connection-state=established,related action=accept comment="ISP-ALLOW-ESTABLISHED" place-before=0';
+        $L[] = '';
         $L[] = '# Drop invalid connections';
         $L[] = '/ip firewall filter remove [find comment="ISP-DROP-INVALID"]';
         $L[] = '/ip firewall filter add chain=forward connection-state=invalid action=drop comment="ISP-DROP-INVALID"';
@@ -506,7 +510,7 @@ class MikrotikScriptService
         $L[] = '/ip firewall filter remove [find comment="ISP-NO-CLIENT2CLIENT"]';
         $L[] = "/ip firewall filter add chain=forward in-interface=\"{$ctx['customerIface']}\" out-interface=\"{$ctx['customerIface']}\" action=drop comment=\"ISP-NO-CLIENT2CLIENT\"";
         $L[] = '';
-        $L[] = '# Block DNS requests from WAN (prevent open resolver / DNS amplification)';
+        $L[] = '# Block DNS from WAN (prevent open resolver)';
         $L[] = '/ip firewall filter remove [find comment="ISP-NO-DNS-WAN"]';
         $L[] = "/ip firewall filter add chain=input protocol=udp dst-port=53 in-interface=\"{$ctx['wanIface']}\" action=drop comment=\"ISP-NO-DNS-WAN\"";
         $L[] = "/ip firewall filter add chain=input protocol=tcp dst-port=53 in-interface=\"{$ctx['wanIface']}\" action=drop comment=\"ISP-NO-DNS-WAN\"";
@@ -630,6 +634,10 @@ class MikrotikScriptService
         $L[] = '    :local wanIP ""';
         $L[] = "    :do { :set wanIP [/ip address get [find interface=\"{$wanIface}\"] address] } on-error={}";
         $L[] = '    :do { :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]] } on-error={}';
+        $L[] = "    :if (\$wanIP = \"\") do={";
+        $L[] = "        :do { :set wanIP [/ip dhcp-client get [find interface=\"{$wanIface}\"] address] } on-error={}";
+        $L[] = '        :do { :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]] } on-error={}';
+        $L[] = '    }';
         $L[] = '    :local vpnIP ""';
         $L[] = '    :do { :set vpnIP [/ip address get [find interface="wg-billing"] address] } on-error={}';
         $L[] = '    :do { :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]] } on-error={}';
