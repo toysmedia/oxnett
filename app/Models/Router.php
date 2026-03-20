@@ -22,6 +22,6 @@ class Router extends Model
 
     public function nas()
     {
-        return $this->hasOne(Nas::class, 'nasname', 'wan_ip');
+        return $this->hasOne(Nas::class, 'nasname', 'vpn_ip');
     }
 }

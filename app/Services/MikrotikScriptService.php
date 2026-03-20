@@ -6,6 +6,7 @@ use App\Models\Router;
 
 class MikrotikScriptService
 {
+    protected const WG_KEY_PLACEHOLDER = 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV';
     // ── Public API ─────────────────────────────────────────────────────────────
 
     /**
@@ -92,6 +93,7 @@ class MikrotikScriptService
         $billingServerIp  = $this->resolveRadiusIp();
         $billingPublicKey = $this->resolveWgPublicKey();
         $wgPort           = $this->resolveWgPort();
+        $wgEndpoint       = $this->resolveWgEndpoint();
 
         $callbackUrl      = rtrim(config('app.url'), '/') . '/api/router-callback';
         $heartbeatUrl     = rtrim(config('app.url'), '/') . '/api/router-heartbeat';
@@ -104,10 +106,10 @@ class MikrotikScriptService
 
         $billingDomain = $this->sanitizeForRos(
             $router->billing_domain
-                ?: (string)(env('BILLING_DOMAIN', parse_url(config('app.url'), PHP_URL_HOST) ?: 'billing.local'))
+                ?: (string)(config('app.billing_domain', parse_url(config('app.url'), PHP_URL_HOST) ?: 'billing.local'))
         );
 
-        $wanIface      = $this->sanitizeForRos($router->wan_interface      ?: (string)env('WAN_INTERFACE', 'ether1'));
+        $wanIface      = $this->sanitizeForRos($router->wan_interface      ?: (string)config('app.wan_interface', 'ether1'));
         $wanIface      = $wanIface ?: 'ether1'; // safety fallback — must never be empty
         $customerIface = $this->sanitizeForRos($router->customer_interface ?: 'bridge1');
         $customerIface = $customerIface ?: 'bridge1'; // safety fallback
@@ -126,13 +128,13 @@ class MikrotikScriptService
 
         $scriptFilename = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $router->name)) . '-mikrotik.rsc';
 
-        $mgmtIps    = (string)env('MANAGEMENT_IPS', '192.168.88.1,10.0.0.1');
+        $mgmtIps    = (string)config('app.management_ips', '192.168.88.1,10.0.0.1');
         $mgmtIpList = array_values(array_filter(array_map('trim', explode(',', $mgmtIps))));
 
         $hotspotBaseUrl = rtrim(config('app.url'), '/') . '/api/hotspot-files/' . $router->id;
 
         return compact(
-            'billingServerIp', 'billingPublicKey', 'wgPort',
+            'billingServerIp', 'billingPublicKey', 'wgPort', 'wgEndpoint',
             'callbackUrl', 'heartbeatUrl', 'phaseCompleteUrl', 'provisionUrl',
             'routerName', 'billingDomain',
             'wanIface', 'customerIface',
@@ -370,10 +372,14 @@ class MikrotikScriptService
             '# Assign VPN IP',
             "/ip address add address={$ctx['wgRouterIp']} interface=\"wg-billing\" comment=\"iNettotik VPN IP\"",
             '',
+            '# Add route to WG management subnet via the tunnel',
+            '/ip route remove [find comment="iNettotik WG Subnet"]',
+            "/ip route add dst-address={$ctx['wgSubnet']} gateway=\"wg-billing\" comment=\"iNettotik WG Subnet\"",
+            '',
             '# Add billing server as peer',
             '/interface wireguard peers add interface="wg-billing" \\',
             "    public-key=\"{$ctx['billingPublicKey']}\" \\",
-            "    endpoint-address={$ctx['billingServerIp']} \\",
+            "    endpoint-address={$ctx['wgEndpoint']} \\",
             "    endpoint-port={$ctx['wgPort']} \\",
             "    allowed-address=\"{$ctx['wgAllowedAddresses']}\" \\",
             '    persistent-keepalive=25s \\',
@@ -408,7 +414,7 @@ class MikrotikScriptService
         return [
             '# --- RADIUS Client ---',
             '/radius remove [find]',
-            "/radius add address={$ctx['billingServerIp']} secret=\"{$ctx['radiusSecret']}\" service=ppp,hotspot,login",
+            "/radius add address={$ctx['wgServerPingIp']} secret=\"{$ctx['radiusSecret']}\" service=ppp,hotspot,login",
             '/radius incoming set accept=yes port=3799',
             '',
         ];
@@ -441,6 +447,7 @@ class MikrotikScriptService
         return [
             '# --- Hotspot Server (on VLAN 20) ---',
             '/ip hotspot remove [find interface="vlan20-hotspot"]',
+            '/ip hotspot remove [find name="hotspot-server"]',
             '/ip hotspot profile remove [find name="hsprof-radius"]',
             "/ip hotspot profile add name=\"hsprof-radius\" hotspot-address=192.168.2.1 dns-name=\"{$ctx['billingDomain']}\" use-radius=yes radius-location-id=\"{$ctx['routerName']}\" login-by=http-pap,http-chap http-cookie-lifetime=1d",
             '/ip hotspot add interface="vlan20-hotspot" address-pool=hotspot-pool profile="hsprof-radius" name="hotspot-server" disabled=no',
@@ -584,28 +591,29 @@ class MikrotikScriptService
     protected function buildPhaseCallback(int $phase, array $ctx): array
     {
         $L = [];
+        $secretHeader = '';
+        $callbackSecret = config('app.router_callback_secret', '');
+        if (!empty($callbackSecret)) {
+            $secretHeader = ",X-Router-Secret: {$callbackSecret}";
+        }
+
+        $wanIface = $ctx['wanIface'];
         $L[] = "# --- Phase {$phase} Callback ---";
         $L[] = ':local wanIP ""';
-        $L[] = ':do {';
-        $L[] = "    :set wanIP [/ip address get [find interface=\"{$ctx['wanIface']}\"] address]";
-        $L[] = '    :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]]';
-        $L[] = '} on-error={}';
+        $L[] = ":do { :set wanIP [/ip address get [find interface=\"{$wanIface}\"] address] } on-error={}";
+        $L[] = ':do { :set wanIP [:pick $wanIP 0 [:find $wanIP "/"]] } on-error={}';
         $L[] = '';
         $L[] = ':local vpnIP ""';
-        $L[] = ':do {';
-        $L[] = '    :set vpnIP [/ip address get [find interface="wg-billing"] address]';
-        $L[] = '    :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]]';
-        $L[] = '} on-error={}';
+        $L[] = ':do { :set vpnIP [/ip address get [find interface="wg-billing"] address] } on-error={}';
+        $L[] = ':do { :set vpnIP [:pick $vpnIP 0 [:find $vpnIP "/"]] } on-error={}';
         $L[] = '';
         $L[] = ':local routerPubKey ""';
-        $L[] = ':do {';
-        $L[] = '    :set routerPubKey [/interface wireguard get [find name="wg-billing"] public-key]';
-        $L[] = '} on-error={}';
+        $L[] = ':do { :set routerPubKey [/interface wireguard get [find name="wg-billing"] public-key] } on-error={}';
         $L[] = '';
         $L[] = ':do {';
         $L[] = '    /tool fetch url=$callbackURL \\';
         $L[] = '        http-method=post \\';
-        $L[] = '        http-header-field="Content-Type: application/json" \\';
+        $L[] = "        http-header-field=\"Content-Type: application/json{$secretHeader}\" \\";
         $L[] = "        http-data=(\"{\\\"router_name\\\":\\\"\" . \$routerName . \"\\\",\\\"wan_ip\\\":\\\"\" . \$wanIP . \"\\\",\\\"vpn_ip\\\":\\\"\" . \$vpnIP . \"\\\",\\\"wg_public_key\\\":\\\"\" . \$routerPubKey . \"\\\",\\\"phase\\\":{$phase}}\") \\";
         $L[] = '        output=none';
         $L[] = '    :put "  WAN IP:     $wanIP"';
@@ -625,7 +633,7 @@ class MikrotikScriptService
 
     protected function resolveRadiusIp(): string
     {
-        $ip = (string)env('RADIUS_SERVER_IP', '');
+        $ip = (string)config('radius.server_ip', '');
         if ($ip !== '') return trim($ip);
         $host = parse_url(config('app.url'), PHP_URL_HOST) ?: '';
         return filter_var($host, FILTER_VALIDATE_IP) ? $host : '127.0.0.1';
@@ -633,11 +641,21 @@ class MikrotikScriptService
 
     protected function resolveWgPublicKey(): string
     {
-        return trim((string)env('WG_SERVER_PUBLIC_KEY', 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV'));
+        return trim((string)config('wireguard.server_public_key', self::WG_KEY_PLACEHOLDER))
+            ?: self::WG_KEY_PLACEHOLDER;
     }
 
     protected function resolveWgPort(): int
     {
-        return (int) env('WG_PORT', 51820);
+        return (int) config('wireguard.port', 51820);
+    }
+
+    protected function resolveWgEndpoint(): string
+    {
+        $endpoint = trim((string)config('wireguard.server_endpoint', ''));
+        if ($endpoint !== '') return $endpoint;
+        // Fall back to parsing the app URL host (works when APP_URL has the public IP)
+        $host = parse_url(config('app.url'), PHP_URL_HOST) ?: '';
+        return $host ?: '127.0.0.1';
     }
 }

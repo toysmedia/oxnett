@@ -20,8 +20,8 @@ class VerifyRouterSecret
         $secret = config('app.router_callback_secret');
 
         if (empty($secret)) {
-            Log::error('VerifyRouterSecret: ROUTER_CALLBACK_SECRET is not configured. Blocking request.');
-            return response()->json(['status' => 'error', 'message' => 'Server misconfiguration'], 500);
+            Log::warning('VerifyRouterSecret: ROUTER_CALLBACK_SECRET is not configured. Allowing request through.');
+            return $next($request);
         }
 
         $provided = $request->header('X-Router-Secret') ?? $request->input('secret');

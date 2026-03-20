@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Router;
 use App\Models\Nas;
 use App\Models\AuditLog;
+use App\Services\WireGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -42,8 +43,9 @@ class RouterCallbackController extends Controller
         if (!empty($data['vpn_ip'])) {
             $updates['vpn_ip'] = $data['vpn_ip'];
         }
-        if (!empty($data['wg_public_key'])) {
-            $updates['wg_public_key'] = $data['wg_public_key'];
+        $newWgKey = !empty($data['wg_public_key']) ? $data['wg_public_key'] : null;
+        if ($newWgKey) {
+            $updates['wg_public_key'] = $newWgKey;
         }
         // Advance provision_phase only forward, never backward
         if (!empty($data['phase']) && (int)$data['phase'] > (int)$router->provision_phase) {
@@ -52,10 +54,30 @@ class RouterCallbackController extends Controller
 
         $router->update($updates);
 
-        // Sync NAS table for FreeRADIUS
-        if ($router->wan_ip) {
+        // Auto-register WireGuard peer on the server when we receive a public key.
+        // Use the router's authoritative vpn_ip from the DB (set by the server on creation),
+        // not the client-provided value, to prevent IP spoofing.
+        if ($newWgKey) {
+            $vpnIp = $router->fresh()->vpn_ip;
+            if ($vpnIp && filter_var($vpnIp, FILTER_VALIDATE_IP)) {
+                try {
+                    app(WireGuardService::class)->addPeer($newWgKey, "{$vpnIp}/32");
+                } catch (\Throwable $e) {
+                    Log::error('Router callback: failed to register WireGuard peer', [
+                        'router_id'  => $router->id,
+                        'public_key' => $newWgKey,
+                        'vpn_ip'     => $vpnIp,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        // Sync NAS table for FreeRADIUS — use vpn_ip (packets arrive from VPN), fallback to wan_ip
+        $nasIp = $router->vpn_ip ?: $router->wan_ip;
+        if ($nasIp) {
             Nas::updateOrCreate(
-                ['nasname' => $router->wan_ip],
+                ['nasname' => $nasIp],
                 [
                     'shortname'   => $router->name,
                     'type'        => 'other',
