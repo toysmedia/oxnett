@@ -6,7 +6,9 @@ use App\Models\Router;
 
 class MikrotikScriptService
 {
-    protected const WG_KEY_PLACEHOLDER = 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV';
+    protected const WG_KEY_PLACEHOLDER      = 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV';
+    protected const WG_SERVER_TUNNEL_IP     = '10.255.255.1';
+    protected const WG_MANAGEMENT_SUBNET    = '10.255.255.0/24';
     // ── Public API ─────────────────────────────────────────────────────────────
 
     /**
@@ -121,9 +123,9 @@ class MikrotikScriptService
 
         $wgOctet            = (($router->id % 253) + 2);
         $wgRouterIp         = "10.255.255.{$wgOctet}/32";
-        $wgServerIp         = '10.255.255.1/32';
-        $wgServerPingIp     = '10.255.255.1'; // WG server IP without subnet mask (used for ping)
-        $wgSubnet           = '10.255.255.0/24';
+        $wgServerIp         = self::WG_SERVER_TUNNEL_IP . '/32';
+        $wgServerPingIp     = self::WG_SERVER_TUNNEL_IP; // WG server IP without subnet mask (used for ping)
+        $wgSubnet           = self::WG_MANAGEMENT_SUBNET;
         $wgAllowedAddresses = "{$wgServerIp},{$wgSubnet}";
 
         $scriptFilename = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $router->name)) . '-mikrotik.rsc';
@@ -190,7 +192,7 @@ class MikrotikScriptService
             ":local pppoePoolRange \"{$ctx['pppoePoolRange']}\"",
             ":local hotspotPoolRange \"{$ctx['hotspotPoolRange']}\"",
             ":local billingDomain \"{$ctx['billingDomain']}\"",
-            ':local wgSubnet "10.255.255.0/24"',
+            ':local wgSubnet "' . self::WG_MANAGEMENT_SUBNET . '"',
             '',
         ];
     }
@@ -328,14 +330,12 @@ class MikrotikScriptService
 
     protected function buildEtherLockdown(array $ctx): array
     {
-        return [
-            '# --- Ether Port Lockdown (no internet until Phase 2) ---',
-            '# Lock all ether ports except WAN — prevents any internet leaking',
-            ":foreach i in=[/interface ethernet find where name!=\"{$ctx['wanIface']}\"] do={",
-            '    /interface ethernet set $i disabled=yes',
-            '}',
-            '',
-        ];
+        // Ether ports are intentionally NOT disabled here: disabling them would
+        // immediately disconnect any admin connected via a LAN port (WinBox session
+        // lost, no recovery possible without console access).  Traffic isolation is
+        // achieved in Phase 2 by placing the ports under a bridge with VLAN
+        // filtering, so there is no need to touch port state in Phase 1.
+        return [];
     }
 
     protected function buildEtherEnable(array $ctx): array
@@ -403,8 +403,12 @@ class MikrotikScriptService
             "/interface vlan add name=\"vlan20-hotspot\" vlan-id=20 interface=\"{$ctx['customerIface']}\" comment=\"Hotspot Subscribers\"",
             '',
             '# --- Bridge VLAN Filtering (vlan-mode=secure prevents inter-VLAN leakage) ---',
+            '# frame-types=admit-all keeps untagged management frames flowing so an admin',
+            '# connected from a normal laptop is not locked out after the bridge is created.',
+            '# pvid=1 assigns untagged frames to VLAN 1 (the implicit management VLAN),',
+            '# while tagged subscriber frames (VLAN 10/20) continue to work normally.',
             "/interface bridge set [find name=\"{$ctx['customerIface']}\"] vlan-filtering=yes",
-            "/interface bridge port set [find bridge=\"{$ctx['customerIface']}\"] frame-types=admit-only-vlan-tagged",
+            "/interface bridge port set [find bridge=\"{$ctx['customerIface']}\"] frame-types=admit-all pvid=1",
             '',
         ];
     }
@@ -527,12 +531,26 @@ class MikrotikScriptService
             }
             $safeServerIp = $this->sanitizeForRos($ctx['billingServerIp']);
             $L[] = "/ip firewall address-list add list=\"mgmt-allowed\" address={$safeServerIp} comment=\"Billing Server\"";
+            // Allow management access via the WireGuard subnet (always reachable
+            // once the tunnel is up, regardless of which IP the admin uses).
+            $L[] = "/ip firewall address-list add list=\"mgmt-allowed\" address=" . self::WG_MANAGEMENT_SUBNET . " comment=\"WireGuard Management Subnet\"";
             $L[] = '/ip firewall filter remove [find comment="ISP-MGMT-ALLOW"]';
             $L[] = '/ip firewall filter add chain=input src-address-list=mgmt-allowed action=accept comment="ISP-MGMT-ALLOW"';
             $L[] = '/ip firewall filter remove [find comment="ISP-MGMT-DROP"]';
             $L[] = "/ip firewall filter add chain=input action=drop src-address-list=!mgmt-allowed in-interface=\"{$ctx['wanIface']}\" protocol=tcp dst-port=22,80,8291,8728 comment=\"ISP-MGMT-DROP\"";
             $L[] = '';
         }
+
+        // Allow all management traffic arriving on the customer bridge and the
+        // WireGuard tunnel interface BEFORE the blanket WAN drop-all rule.
+        // Without this, WinBox / SSH / API from a locally-connected laptop or
+        // from the billing server via the tunnel would be silently dropped.
+        $L[] = '# Accept management traffic from local bridge and WireGuard tunnel';
+        $L[] = '/ip firewall filter remove [find comment="ISP-ACCEPT-BRIDGE-INPUT"]';
+        $L[] = "/ip firewall filter add chain=input in-interface=\"{$ctx['customerIface']}\" action=accept comment=\"ISP-ACCEPT-BRIDGE-INPUT\"";
+        $L[] = '/ip firewall filter remove [find comment="ISP-ACCEPT-WG-INPUT"]';
+        $L[] = '/ip firewall filter add chain=input in-interface="wg-billing" action=accept comment="ISP-ACCEPT-WG-INPUT"';
+        $L[] = '';
 
         $L[] = '# Default DROP on input chain for WAN interface';
         $L[] = '/ip firewall filter remove [find comment="ISP-DROP-ALL-INPUT"]';
@@ -634,9 +652,20 @@ class MikrotikScriptService
     protected function resolveRadiusIp(): string
     {
         $ip = (string)config('radius.server_ip', '');
-        if ($ip !== '') return trim($ip);
+        if ($ip !== '') {
+            $resolved = trim($ip);
+            // If RADIUS_SERVER_IP is explicitly set to localhost it is useless on a
+            // remote MikroTik router.  Prefer the WireGuard server IP so traffic
+            // is routed through the management tunnel.
+            return ($resolved === '127.0.0.1') ? self::WG_SERVER_TUNNEL_IP : $resolved;
+        }
         $host = parse_url(config('app.url'), PHP_URL_HOST) ?: '';
-        return filter_var($host, FILTER_VALIDATE_IP) ? $host : '127.0.0.1';
+        // When the billing server is only reachable via the WireGuard tunnel use
+        // the tunnel IP so the remote router can actually reach it.
+        if (!$host || $host === '127.0.0.1' || !filter_var($host, FILTER_VALIDATE_IP)) {
+            return self::WG_SERVER_TUNNEL_IP;
+        }
+        return $host;
     }
 
     protected function resolveWgPublicKey(): string
@@ -654,8 +683,13 @@ class MikrotikScriptService
     {
         $endpoint = trim((string)config('wireguard.server_endpoint', ''));
         if ($endpoint !== '') return $endpoint;
-        // Fall back to parsing the app URL host (works when APP_URL has the public IP)
+        // Fall back to parsing the app URL host (works when APP_URL contains a
+        // publicly-reachable hostname or IP).  We deliberately do NOT fall back
+        // to 127.0.0.1 — that address is useless to a remote MikroTik router
+        // and would silently prevent the WireGuard tunnel from ever connecting.
+        // Set WG_SERVER_ENDPOINT in .env to the public IP / hostname of the
+        // billing server so the router can reach it from the internet.
         $host = parse_url(config('app.url'), PHP_URL_HOST) ?: '';
-        return $host ?: '127.0.0.1';
+        return $host ?: 'WG_SERVER_ENDPOINT_NOT_CONFIGURED';
     }
 }
