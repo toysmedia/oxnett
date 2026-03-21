@@ -75,6 +75,10 @@ class MikrotikScriptService
         $timezone           = $this->s($router->timezone ?? 'Africa/Nairobi');
         $routerName         = $this->s($router->name ?? 'MikroTik');
 
+        $callbackSecret    = config('app.router_callback_secret', '');
+        $routerNameUrl     = urlencode($router->name ?? 'MikroTik');
+        $callbackSecretUrl = urlencode($callbackSecret);
+
         $lines = [];
 
         // --- Router identity ---
@@ -93,13 +97,13 @@ class MikrotikScriptService
         $lines[] = "";
 
         // 2. Certificate download and import
+        // Use :execute so each fetch runs in the background and does not block
+        // the terminal paste buffer. A single :delay 10s waits for all three.
         $lines[] = "# 2. Download OpenVPN Certificates from billing server";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-certs/{$refCode}/ca.crt\" dst-path={$caFilename} } on-error={}";
-        $lines[] = ":delay 3s";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-certs/{$refCode}/router.crt\" dst-path={$routerCertFilename} } on-error={}";
-        $lines[] = ":delay 3s";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-certs/{$refCode}/router.key\" dst-path={$routerKeyFilename} } on-error={}";
-        $lines[] = ":delay 3s";
+        $lines[] = ":execute script=\"/tool fetch url=\\\"https://{$billingDomain}/api/router-certs/{$refCode}/ca.crt\\\" dst-path={$caFilename}\"";
+        $lines[] = ":execute script=\"/tool fetch url=\\\"https://{$billingDomain}/api/router-certs/{$refCode}/router.crt\\\" dst-path={$routerCertFilename}\"";
+        $lines[] = ":execute script=\"/tool fetch url=\\\"https://{$billingDomain}/api/router-certs/{$refCode}/router.key\\\" dst-path={$routerKeyFilename}\"";
+        $lines[] = ":delay 10s";
         $lines[] = "";
 
         $lines[] = "# Import certificates";
@@ -182,43 +186,32 @@ class MikrotikScriptService
         $lines[] = "/ip service set www port=80 disabled=no";
         $lines[] = "";
 
-        // Phase 1 callback — register router with billing server
-        $callbackSecret    = config('app.router_callback_secret', '');
-        $routerNameUrl     = urlencode($router->name ?? 'MikroTik');
-        $callbackSecretUrl = urlencode($callbackSecret);
+        // Phase 1 callback — register router with billing server.
+        // wan_ip is nullable in the controller; skip the fragile multi-line
+        // WAN IP detection block and just omit it from the callback.
         $lines[] = "# Callback — register with billing server (phase 1)";
         $lines[] = ":delay 5s";
-        $lines[] = ":local wanIp \"\"";
-        $lines[] = ":do {";
-        $lines[] = "  :local gwIf \"\"";
-        $lines[] = "  :set gwIf [/ip route get [find dst-address=0.0.0.0/0] gateway]";
-        $lines[] = "  :set wanIp [/ip address get [find interface=\$gwIf] address]";
-        $lines[] = "  :set wanIp [:pick \$wanIp 0 [:find \$wanIp \"/\"]]";
-        $lines[] = "} on-error={}";
         $lines[] = ":local cbUrl \"https://{$billingDomain}/api/router-callback\"";
-        $lines[] = ":local cbData \"router_name={$routerNameUrl}&wan_ip=\$wanIp&phase=1&secret={$callbackSecretUrl}\"";
+        $lines[] = ":local cbData \"router_name={$routerNameUrl}&phase=1&secret={$callbackSecretUrl}\"";
         $lines[] = ":do { /tool fetch url=\$cbUrl http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\$cbData keep-result=no } on-error={}";
         $lines[] = "";
 
-        // Heartbeat scheduler — reports VPN IP to billing server every 5 minutes
-        // Build the on-event script from short :local pieces to stay within the
-        // MikroTik terminal paste-buffer line-length limit (~80 chars per line).
-        // Inside each ":local hbN" string: \" → " and \$ → $ when stored.
+        // Heartbeat scheduler — reports VPN IP to billing server every 5 minutes.
+        // Build the on-event script as a single PHP string and emit one long
+        // /system scheduler add line.  Single long lines paste fine in the
+        // MikroTik terminal — only *split* lines cause scope/buffer issues.
+        // Inside the on-event "..." value: \" → " and $v stays as $v.
+        $hb  = ':local v \"\"; ';
+        $hb .= ':do { :set v [/ip address get [find interface=ovpn-mgmt] address]; ';
+        $hb .= ':set v [:pick $v 0 [:find $v \"/\"]] } on-error={}; ';
+        $hb .= ':do { /tool fetch url=\"https://' . $billingDomain . '/api/router-heartbeat\" ';
+        $hb .= 'http-method=post ';
+        $hb .= 'http-header-field=\"Content-Type: application/x-www-form-urlencoded\" ';
+        $hb .= 'http-data=\"router_name=' . $routerNameUrl . '&vpn_ip=$v&secret=' . $callbackSecretUrl . '\" ';
+        $hb .= 'keep-result=no } on-error={}';
         $lines[] = "# Heartbeat scheduler — reports VPN IP to billing server every 5 min";
-        $lines[] = ':local hb1 ":local v \\"\\"; :do { :set v [/ip address get"';
-        $lines[] = ':local hb2 " [find interface=ovpn-mgmt] address];"';
-        $lines[] = ':local hb3 " :set v [:pick \\$v 0 [:find \\$v \\"/\\"]]"';
-        $lines[] = ':local hb4 " } on-error={}; :do { /tool fetch"';
-        $lines[] = ':local hb5 " url=\\"https://' . $billingDomain . '/api/router-heartbeat\\""';
-        $lines[] = ':local hb6 " http-method=post"';
-        $lines[] = ':local hb7 " http-header-field=\\"Content-Type:"';
-        $lines[] = ':local hb8 " application/x-www-form-urlencoded\\""';
-        $lines[] = ':local hb9 " http-data=\\"router_name=' . $routerNameUrl . '&vpn_ip=\\$v&secret=' . $callbackSecretUrl . '\\""';
-        $lines[] = ':local hb10 " keep-result=no } on-error={}"';
-        $lines[] = ':local hbScript ($hb1 . $hb2 . $hb3 . $hb4 . $hb5)';
-        $lines[] = ':set hbScript ($hbScript . $hb6 . $hb7 . $hb8 . $hb9 . $hb10)';
         $lines[] = ":do { /system scheduler remove [find name=billing-heartbeat] } on-error={}";
-        $lines[] = "/system scheduler add name=billing-heartbeat interval=5m start-time=startup on-event=\$hbScript";
+        $lines[] = '/system scheduler add name=billing-heartbeat interval=5m start-time=startup on-event="' . $hb . '"';
 
         return implode("\n", $lines);
     }
