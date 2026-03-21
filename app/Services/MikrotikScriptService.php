@@ -9,6 +9,10 @@ class MikrotikScriptService
     protected const WG_KEY_PLACEHOLDER      = 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV';
     protected const WG_SERVER_TUNNEL_IP     = '10.255.255.1';
     protected const WG_MANAGEMENT_SUBNET    = '10.255.255.0/24';
+    /** Starting octet for formula-derived VPN IPs (.10–.249). Avoids .1 (server) and .2 (reserved). */
+    protected const VPN_IP_RANGE_START      = 10;
+    /** Modulus divisor that keeps octet within .10–.249 range. */
+    protected const VPN_IP_RANGE_SIZE       = 240;
     // ── Public API ─────────────────────────────────────────────────────────────
 
     /**
@@ -101,8 +105,8 @@ class MikrotikScriptService
         $heartbeatUrl       = rtrim(config('app.url'), '/') . '/api/router-heartbeat';
         $phaseCompleteUrl   = rtrim(config('app.url'), '/') . '/api/router-phase-complete';
         $provisionUrl       = rtrim(config('app.url'), '/') . '/admin/provision/' . $router->ref_code;
-        $tunnelCallbackUrl  = 'http://' . self::WG_SERVER_TUNNEL_IP . '/api/router-callback';
-        $tunnelHeartbeatUrl = 'http://' . self::WG_SERVER_TUNNEL_IP . '/api/router-heartbeat';
+        $tunnelCallbackUrl  = rtrim(config('app.url'), '/') . '/api/router-callback';
+        $tunnelHeartbeatUrl = rtrim(config('app.url'), '/') . '/api/router-heartbeat';
 
         $routerName = preg_replace('/[^a-zA-Z0-9\-]/', '-', (string) $router->name);
         $routerName = preg_replace('/-{2,}/', '-', $routerName);
@@ -123,8 +127,16 @@ class MikrotikScriptService
 
         $radiusSecret = $this->sanitizeForRos((string) $router->radius_secret);
 
-        $wgOctet            = (($router->id % 253) + 2);
-        $wgRouterIp         = "10.255.255.{$wgOctet}/32";
+        // Use the stored vpn_ip if already assigned to prevent IP collisions on
+        // re-provision.  Fall back to a formula-derived octet for new routers.
+        if ($router->vpn_ip !== null && $router->vpn_ip !== '' && filter_var($router->vpn_ip, FILTER_VALIDATE_IP)) {
+            $wgRouterIp = $router->vpn_ip . '/32';
+        } else {
+            // Range: .10 – .249 (avoids .1 server, .2 reserved, and gives headroom
+            // before wrapping; IDs 1–240 map to unique octets).
+            $wgOctet    = (($router->id % self::VPN_IP_RANGE_SIZE) + self::VPN_IP_RANGE_START);
+            $wgRouterIp = "10.255.255.{$wgOctet}/32";
+        }
         $wgServerIp         = self::WG_SERVER_TUNNEL_IP . '/32';
         $wgServerPingIp     = self::WG_SERVER_TUNNEL_IP; // WG server IP without subnet mask (used for ping)
         $wgSubnet           = self::WG_MANAGEMENT_SUBNET;
@@ -213,6 +225,12 @@ class MikrotikScriptService
 
         $L[] = '# --- System Identity ---';
         $L[] = "/system identity set name=\"{$ctx['routerName']}\"";
+        $L[] = '';
+
+        // DNS must be set before the Phase 1 callback so the router can resolve
+        // the billing server domain (e.g. oxnet.co.ke) during /tool fetch.
+        $L[] = '# --- DNS (set early so Phase 1 callback can resolve domain) ---';
+        $L[] = '/ip dns set allow-remote-requests=yes servers=8.8.8.8,1.1.1.1';
         $L[] = '';
 
         $L = array_merge($L, $this->buildEtherLockdown($ctx));
@@ -609,6 +627,7 @@ class MikrotikScriptService
             '                    http-method=post \\',
             "                    http-header-field=\"Content-Type: application/json{$secretHeader}\" \\",
             '                    http-data=("{\"router_name\":\"" . [/system identity get name] . "\"}") \\',
+            '                    check-certificate=no \\',
             '                    output=none',
             '            } on-error={}',
             '        }',
@@ -686,6 +705,7 @@ class MikrotikScriptService
             $L[] = '            http-method=post \\';
             $L[] = "            http-header-field=\"Content-Type: application/json{$secretHeader}\" \\";
             $L[] = '            http-data=$cbData \\';
+            $L[] = '            check-certificate=no \\';
             $L[] = '            output=none';
             $L[] = '    } on-error={';
             $L[] = "        :put \"WARNING: Could not reach billing server at {$fallbackUrl}\"";
