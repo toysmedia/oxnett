@@ -23,6 +23,7 @@ class WireGuardService
             'sudo', 'wg', 'set', $this->interface,
             'peer', $publicKey,
             'allowed-ips', $allowedIps,
+            'persistent-keepalive', '25',
         ]);
 
         if ($result->successful()) {
@@ -77,18 +78,39 @@ class WireGuardService
 
     /**
      * Persist the current WireGuard configuration to disk.
+     *
+     * Uses `wg showconf` piped via `tee` into the conf file so that peers added
+     * at runtime survive a reboot.  (`wg-quick save` is not a valid subcommand
+     * on most distributions and silently does nothing.)
      */
     public function savePersist(): bool
     {
-        $result = Process::run(['sudo', 'wg-quick', 'save', $this->interface]);
+        $confPath = "/etc/wireguard/{$this->interface}.conf";
+
+        $showConf = Process::run(['sudo', 'wg', 'showconf', $this->interface]);
+
+        if (! $showConf->successful()) {
+            Log::error('WireGuardService: wg showconf failed', [
+                'interface' => $this->interface,
+                'output'    => $showConf->output(),
+                'error'     => $showConf->errorOutput(),
+            ]);
+            return false;
+        }
+
+        $result = Process::run(['sudo', 'tee', $confPath], input: $showConf->output());
 
         if ($result->successful()) {
-            Log::info('WireGuardService: configuration saved', ['interface' => $this->interface]);
+            Log::info('WireGuardService: configuration saved', [
+                'interface' => $this->interface,
+                'path'      => $confPath,
+            ]);
             return true;
         }
 
         Log::error('WireGuardService: failed to save configuration', [
             'interface' => $this->interface,
+            'path'      => $confPath,
             'output'    => $result->output(),
             'error'     => $result->errorOutput(),
         ]);

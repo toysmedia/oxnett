@@ -6,6 +6,15 @@ use App\Models\Router;
 
 class MikrotikScriptService
 {
+    protected const WG_KEY_PLACEHOLDER      = 'KEY_NOT_CONFIGURED_SET_WG_SERVER_PUBLIC_KEY_IN_ENV';
+    protected const WG_SERVER_TUNNEL_IP     = '10.255.255.1';
+    protected const WG_MANAGEMENT_SUBNET    = '10.255.255.0/24';
+    /** Starting octet for formula-derived VPN IPs (.10–.249). Avoids .1 (server) and .2 (reserved). */
+    protected const VPN_IP_RANGE_START      = 10;
+    /** Modulus divisor that keeps octet within .10–.249 range. */
+    protected const VPN_IP_RANGE_SIZE       = 240;
+    // ── Public API ─────────────────────────────────────────────────────────────
+
     /**
      * Generate the full provisioning script for the given router.
      *
