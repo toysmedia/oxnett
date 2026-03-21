@@ -110,12 +110,14 @@ class MikrotikScriptService
 
         // 3. RADIUS Client
         $lines[] = "# 3. RADIUS Client";
+        $lines[] = ":do { /radius remove [find address={$radiusServerIp}] } on-error={}";
         $lines[] = "/radius add address={$radiusServerIp} secret=\"{$radiusSecret}\" service=hotspot,ppp timeout=3s";
         $lines[] = "/radius incoming set accept=yes port=3799";
         $lines[] = "";
 
         // 4. Remote Management User
         $lines[] = "# 4. Remote Management User";
+        $lines[] = ":do { /user remove [find name=\"{$mgmtUserName}\"] } on-error={}";
         $lines[] = "/user add name=\"{$mgmtUserName}\" password=\"{$radiusSecret}\" group=full";
         $lines[] = "";
 
@@ -135,6 +137,7 @@ class MikrotikScriptService
         } else {
             // RouterOS 7.x (default): primary-ntp was removed
             $lines[] = "/system ntp client set enabled=yes";
+            $lines[] = ":do { /system ntp client servers remove [find address={$ntpServer}] } on-error={}";
             $lines[] = "/system ntp client servers add address={$ntpServer}";
         }
         $lines[] = "";
@@ -142,20 +145,25 @@ class MikrotikScriptService
         // 7. Firewall Baseline
         $lines[] = "# 7. Firewall Baseline";
         if ($billingSubnet !== '') {
+            $lines[] = ":do { /ip firewall filter remove [find comment=\"accept billing mgmt\"] } on-error={}";
             $lines[] = "/ip firewall filter add chain=input src-address={$billingSubnet} action=accept comment=\"accept billing mgmt\" place-before=*0";
         }
         $lines[] = "/ip firewall filter disable [find where comment=\"defconf: fasttrack\"]";
-        $lines[] = "/ip firewall filter add chain=forward src-address-list=expired action=drop place-before=*0";
+        $lines[] = ":do { /ip firewall filter remove [find comment=\"drop expired\"] } on-error={}";
+        $lines[] = "/ip firewall filter add chain=forward src-address-list=expired action=drop comment=\"drop expired\" place-before=*0";
         $lines[] = "";
 
         // 8. NAT Masquerade
         $lines[] = "# 8. NAT Masquerade";
-        $lines[] = "/ip firewall nat add chain=srcnat action=masquerade place-before=*0";
+        $lines[] = ":do { /ip firewall nat remove [find comment=\"billing masquerade\"] } on-error={}";
+        $lines[] = "/ip firewall nat add chain=srcnat action=masquerade comment=\"billing masquerade\" place-before=*0";
         $lines[] = "";
 
         // 9. OpenVPN Tunnel
         $lines[] = "# 9. OpenVPN Tunnel";
+        $lines[] = ":do { /ppp profile remove [find name=ovpn-mgmt] } on-error={}";
         $lines[] = "/ppp profile add name=ovpn-mgmt change-tcp-mss=yes use-encryption=yes";
+        $lines[] = ":do { /interface ovpn-client remove [find name=ovpn-mgmt] } on-error={}";
         $lines[] = "/interface ovpn-client add name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort} user=\"{$mgmtUserName}\" password=\"{$radiusSecret}\" certificate={$routerCertName} ca-certificate={$caCertName} auth=sha1 cipher=aes256 use-peer-dns=no profile=ovpn-mgmt disabled=no";
 
         return implode("\n", $lines);
@@ -181,22 +189,26 @@ class MikrotikScriptService
 
         // Bridge
         $lines[] = "# PPPoE Bridge";
+        $lines[] = ":do { /interface bridge remove [find name={$bridgeName}] } on-error={}";
         $lines[] = "/interface bridge add name={$bridgeName}";
         $lines[] = "";
 
         // IP Pool
         $lines[] = "# PPPoE IP Pool";
+        $lines[] = ":do { /ip pool remove [find name=pppoe_pool] } on-error={}";
         $lines[] = "/ip pool add name=pppoe_pool ranges={$poolRange}";
         $lines[] = "";
 
         // PPP Profile
         $lines[] = "# PPP Profile";
+        $lines[] = ":do { /ppp profile remove [find name=pppoe-profile] } on-error={}";
         $lines[] = "/ppp profile add name=pppoe-profile dns-server=8.8.8.8,8.8.4.4 local-address={$gatewayIp} remote-address=pppoe_pool use-encryption=yes";
         $lines[] = "";
 
         // PPPoE Server
         $lines[] = "# PPPoE Server";
         $lines[] = "# PAP-only is deliberate: credentials are already protected by the OpenVPN tunnel.";
+        $lines[] = ":do { /interface pppoe-server server remove [find service-name=pppoe] } on-error={}";
         $lines[] = "/interface pppoe-server server add service-name=pppoe interface={$bridgeName} authentication=pap one-session-per-host=yes keepalive-timeout=10 default-profile=pppoe-profile disabled=no";
         $lines[] = "";
 
@@ -231,32 +243,39 @@ class MikrotikScriptService
 
         // Bridge
         $lines[] = "# Hotspot Bridge";
+        $lines[] = ":do { /interface bridge remove [find name={$bridgeName}] } on-error={}";
         $lines[] = "/interface bridge add name={$bridgeName}";
         $lines[] = "";
 
         // Assign gateway IP to bridge
         $lines[] = "# Gateway IP";
+        $lines[] = ":do { /ip address remove [find address=\"{$gatewayIp}/{$prefix}\"] } on-error={}";
         $lines[] = "/ip address add address={$gatewayIp}/{$prefix} interface={$bridgeName}";
         $lines[] = "";
 
         // IP Pool
         $lines[] = "# Hotspot IP Pool";
+        $lines[] = ":do { /ip pool remove [find name=hs_pool] } on-error={}";
         $lines[] = "/ip pool add name=hs_pool ranges={$poolRange}";
         $lines[] = "";
 
         // DHCP Server
         $lines[] = "# DHCP Server";
+        $lines[] = ":do { /ip dhcp-server remove [find name=hs-dhcp] } on-error={}";
         $lines[] = "/ip dhcp-server add name=hs-dhcp interface={$bridgeName} address-pool=hs_pool lease-time=1d-00:10:00 disabled=no";
+        $lines[] = ":do { /ip dhcp-server network remove [find address=\"{$networkAddr}/{$prefix}\"] } on-error={}";
         $lines[] = "/ip dhcp-server network add address={$networkAddr}/{$prefix} gateway={$gatewayIp} dns-server=8.8.8.8,8.8.4.4";
         $lines[] = "";
 
         // Hotspot Profile
         $lines[] = "# Hotspot Profile";
+        $lines[] = ":do { /ip hotspot profile remove [find name=hs-profile] } on-error={}";
         $lines[] = "/ip hotspot profile add name=hs-profile login-by=cookie,https,http-pap,mac-cookie use-radius=yes radius-interim-update=00:06:30";
         $lines[] = "";
 
         // Hotspot Server
         $lines[] = "# Hotspot Server";
+        $lines[] = ":do { /ip hotspot remove [find name=hs-server] } on-error={}";
         $lines[] = "/ip hotspot add name=hs-server interface={$bridgeName} profile=hs-profile addresses-per-mac=3 idle-timeout=1m disabled=no";
         $lines[] = "";
 
@@ -271,6 +290,7 @@ class MikrotikScriptService
 
         // Walled garden — billing server
         $lines[] = "# Walled Garden";
+        $lines[] = ":do { /ip hotspot walled-garden ip remove [find dst-address={$billingVpnIp}] } on-error={}";
         $lines[] = "/ip hotspot walled-garden ip add dst-address={$billingVpnIp} action=accept";
 
         return implode("\n", $lines);
@@ -302,29 +322,35 @@ class MikrotikScriptService
 
         // Single bridge
         $lines[] = "# Combined Bridge";
+        $lines[] = ":do { /interface bridge remove [find name={$bridgeName}] } on-error={}";
         $lines[] = "/interface bridge add name={$bridgeName}";
         $lines[] = "";
 
         // IP addresses
         $lines[] = "# Gateway IPs";
         $lines[] = "# /16 prefix for PPPoE matches the large pool range used in combined mode.";
+        $lines[] = ":do { /ip address remove [find address=\"{$pppoeGateway}/16\"] } on-error={}";
         $lines[] = "/ip address add address={$pppoeGateway}/16 interface={$bridgeName}";
+        $lines[] = ":do { /ip address remove [find address=\"{$hsGateway}/{$hsPrefix}\"] } on-error={}";
         $lines[] = "/ip address add address={$hsGateway}/{$hsPrefix} interface={$bridgeName}";
         $lines[] = "";
 
         // PPPoE Pool
         $lines[] = "# PPPoE IP Pool";
+        $lines[] = ":do { /ip pool remove [find name=pppoe_pool] } on-error={}";
         $lines[] = "/ip pool add name=pppoe_pool ranges={$pppoePoolRange}";
         $lines[] = "";
 
         // PPP Profile
         $lines[] = "# PPP Profile";
+        $lines[] = ":do { /ppp profile remove [find name=pppoe-profile] } on-error={}";
         $lines[] = "/ppp profile add name=pppoe-profile dns-server=8.8.8.8,8.8.4.4 local-address={$pppoeGateway} remote-address=pppoe_pool use-encryption=yes";
         $lines[] = "";
 
         // PPPoE Server
         $lines[] = "# PPPoE Server";
         $lines[] = "# PAP-only is deliberate: credentials are already protected by the OpenVPN tunnel.";
+        $lines[] = ":do { /interface pppoe-server server remove [find service-name=pppoe] } on-error={}";
         $lines[] = "/interface pppoe-server server add service-name=pppoe interface={$bridgeName} authentication=pap one-session-per-host=yes keepalive-timeout=10 default-profile=pppoe-profile disabled=no";
         $lines[] = "";
 
@@ -335,22 +361,27 @@ class MikrotikScriptService
 
         // Hotspot Pool
         $lines[] = "# Hotspot IP Pool";
+        $lines[] = ":do { /ip pool remove [find name=hs_pool] } on-error={}";
         $lines[] = "/ip pool add name=hs_pool ranges={$hsPoolRange}";
         $lines[] = "";
 
         // DHCP Server
         $lines[] = "# DHCP Server";
+        $lines[] = ":do { /ip dhcp-server remove [find name=hs-dhcp] } on-error={}";
         $lines[] = "/ip dhcp-server add name=hs-dhcp interface={$bridgeName} address-pool=hs_pool lease-time=1d-00:10:00 disabled=no";
+        $lines[] = ":do { /ip dhcp-server network remove [find address=\"{$networkAddr}/{$hsPrefix}\"] } on-error={}";
         $lines[] = "/ip dhcp-server network add address={$networkAddr}/{$hsPrefix} gateway={$hsGateway} dns-server=8.8.8.8,8.8.4.4";
         $lines[] = "";
 
         // Hotspot Profile
         $lines[] = "# Hotspot Profile";
+        $lines[] = ":do { /ip hotspot profile remove [find name=hs-profile] } on-error={}";
         $lines[] = "/ip hotspot profile add name=hs-profile login-by=cookie,https,http-pap,mac-cookie use-radius=yes radius-interim-update=00:06:30";
         $lines[] = "";
 
         // Hotspot Server
         $lines[] = "# Hotspot Server";
+        $lines[] = ":do { /ip hotspot remove [find name=hs-server] } on-error={}";
         $lines[] = "/ip hotspot add name=hs-server interface={$bridgeName} profile=hs-profile addresses-per-mac=3 idle-timeout=1m disabled=no";
         $lines[] = "";
 
@@ -365,6 +396,7 @@ class MikrotikScriptService
 
         // Walled garden
         $lines[] = "# Walled Garden";
+        $lines[] = ":do { /ip hotspot walled-garden ip remove [find dst-address={$billingVpnIp}] } on-error={}";
         $lines[] = "/ip hotspot walled-garden ip add dst-address={$billingVpnIp} action=accept";
 
         return implode("\n", $lines);
