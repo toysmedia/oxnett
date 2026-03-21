@@ -69,6 +69,8 @@ class MikrotikScriptService
         $caCertName         = pathinfo($router->ca_cert_filename    ?? 'ca.crt',    PATHINFO_FILENAME);
         $routerCertName     = pathinfo($router->router_cert_filename ?? 'router.crt', PATHINFO_FILENAME);
 
+        $billingDomain      = $this->s($router->billing_domain ?? config('app.url', ''));
+        $refCode            = $this->s($router->ref_code ?? '');
         $mgmtUserName       = $this->s($router->ref_code ?? $router->name ?? 'mgmt-router');
         $timezone           = $this->s($router->timezone ?? 'Africa/Nairobi');
         $routerName         = $this->s($router->name ?? 'MikroTik');
@@ -90,8 +92,17 @@ class MikrotikScriptService
         $lines[] = "/ip dns set servers=8.8.8.8,8.8.4.4 allow-remote-requests=no";
         $lines[] = "";
 
-        // 2. Certificate import
-        $lines[] = "# 2. OpenVPN Certificates";
+        // 2. Certificate download and import
+        $lines[] = "# 2. Download OpenVPN Certificates from billing server";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-certs/{$refCode}/ca.crt\" dst-path={$caFilename}";
+        $lines[] = ":delay 2s";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-certs/{$refCode}/router.crt\" dst-path={$routerCertFilename}";
+        $lines[] = ":delay 2s";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-certs/{$refCode}/router.key\" dst-path={$routerKeyFilename}";
+        $lines[] = ":delay 2s";
+        $lines[] = "";
+
+        $lines[] = "# Import certificates";
         $lines[] = "/certificate import file-name={$caFilename} passphrase=\"\"";
         $lines[] = "/certificate import file-name={$routerCertFilename} passphrase=\"\"";
         $lines[] = "/certificate import file-name={$routerKeyFilename} passphrase=\"\"";
@@ -250,9 +261,9 @@ class MikrotikScriptService
 
         // Fetch hotspot files from billing API
         $lines[] = "# Hotspot Files";
-        $lines[] = "/tool fetch url=\"https://{$billingDomain}/hotspot/login/{$refCode}\" dst-path=hotspot/login.html";
-        $lines[] = "/tool fetch url=\"https://{$billingDomain}/hotspot/alogin/{$refCode}\" dst-path=hotspot/alogin.html";
-        $lines[] = "/tool fetch url=\"https://{$billingDomain}/hotspot/status/{$refCode}\" dst-path=hotspot/status.html";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/login.html\" dst-path=hotspot/login.html";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/alogin.html\" dst-path=hotspot/alogin.html";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/status.html\" dst-path=hotspot/status.html";
         $lines[] = "";
 
         // Walled garden — billing server
@@ -348,9 +359,9 @@ class MikrotikScriptService
 
         // Fetch hotspot files
         $lines[] = "# Hotspot Files";
-        $lines[] = "/tool fetch url=\"https://{$billingDomain}/hotspot/login/{$refCode}\" dst-path=hotspot/login.html";
-        $lines[] = "/tool fetch url=\"https://{$billingDomain}/hotspot/alogin/{$refCode}\" dst-path=hotspot/alogin.html";
-        $lines[] = "/tool fetch url=\"https://{$billingDomain}/hotspot/status/{$refCode}\" dst-path=hotspot/status.html";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/login.html\" dst-path=hotspot/login.html";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/alogin.html\" dst-path=hotspot/alogin.html";
+        $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/status.html\" dst-path=hotspot/status.html";
         $lines[] = "";
 
         // Walled garden
