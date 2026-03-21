@@ -120,7 +120,7 @@
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="{{ route('admin.profile.change_password') }}"> <i class="bx bx-cog bx-md me-3"></i><span>Change Password</span> </a>
+                        <a class="dropdown-item" href="{{ route('admin.profile.change_password_form') }}"> <i class="bx bx-cog bx-md me-3"></i><span>Change Password</span> </a>
                     </li>
                     <li>
                         <div class="dropdown-divider my-1"></div>

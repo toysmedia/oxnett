@@ -65,7 +65,7 @@ h2{font-size:1.2rem;text-align:center;color:#d4d4d4;margin-bottom:28px;font-weig
 
   <div class="divider">or</div>
 
-  <a href="{{ url($billingDomain ?? config('app.url')) }}/buy" class="btn-buy">
+  <a href="https://{{ $billingDomain ?? parse_url(config('app.url'), PHP_URL_HOST) }}/buy" class="btn-buy">
     💳 Buy New Package
   </a>
 

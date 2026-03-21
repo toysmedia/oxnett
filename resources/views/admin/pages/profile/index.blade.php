@@ -7,7 +7,7 @@
             <div class="nav-align-top">
                 <ul class="nav nav-pills flex-column flex-md-row mb-6">
                     <li class="nav-item"><a class="nav-link active" href="javascript:void(0);"><i class="bx bx-sm bx-user me-1_5"></i> My Profile</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.profile.change_password') }}"><i class="bx bx-sm bxs-key me-1_5"></i> Change Password</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ route('admin.profile.change_password_form') }}"><i class="bx bx-sm bxs-key me-1_5"></i> Change Password</a></li>
                 </ul>
             </div>
         </div>
