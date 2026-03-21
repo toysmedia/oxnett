@@ -160,15 +160,21 @@ class MikrotikScriptService
         $lines[] = "";
 
         // 9. OpenVPN Tunnel
+        // Build the ovpn-client add command from short :local variables to stay
+        // within the MikroTik terminal paste-buffer line-length limit (~80 chars).
+        // ca-certificate, auth, and cipher CANNOT be set via a separate `set`
+        // call — they must be supplied at interface creation time in the `add`.
         $lines[] = "# 9. OpenVPN Tunnel";
         $lines[] = ":do { /ppp profile remove [find name=ovpn-mgmt] } on-error={}";
         $lines[] = "/ppp profile add name=ovpn-mgmt change-tcp-mss=yes use-encryption=yes";
         $lines[] = ":do { /interface ovpn-client remove [find name=ovpn-mgmt] } on-error={}";
-        $lines[] = "/interface ovpn-client add name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort} profile=ovpn-mgmt disabled=yes";
-        $lines[] = "/interface ovpn-client set ovpn-mgmt user=\"{$mgmtUserName}\" password=\"{$radiusSecret}\"";
-        $lines[] = "/interface ovpn-client set ovpn-mgmt certificate={$routerCertName} ca-certificate={$caCertName}";
-        $lines[] = "/interface ovpn-client set ovpn-mgmt auth=sha1 cipher=aes256 use-peer-dns=no";
-        $lines[] = "/interface ovpn-client set ovpn-mgmt disabled=no";
+        $lines[] = ":local a \"name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort}\"";
+        $lines[] = ":local b \" user=\\\"{$mgmtUserName}\\\" password=\\\"{$radiusSecret}\\\"\"";
+        $lines[] = ":local c \" certificate={$routerCertName} ca-certificate={$caCertName}\"";
+        $lines[] = ":local d \" auth=sha1 cipher=aes256 use-peer-dns=no\"";
+        $lines[] = ":local e \" profile=ovpn-mgmt disabled=no\"";
+        $lines[] = ":local full (\"/interface ovpn-client add \" . \$a . \$b . \$c . \$d . \$e)";
+        $lines[] = ":execute script=\$full";
 
         return implode("\n", $lines);
     }
