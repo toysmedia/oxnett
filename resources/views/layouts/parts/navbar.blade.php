@@ -109,7 +109,7 @@
                         </a>
                     </li>
                     <li>
-                        <a class="dropdown-item" href="{{ route('profile.change_password') }}">
+                        <a class="dropdown-item" href="{{ route('profile.change_password_form') }}">
                             <i class="bx bx-cog bx-md me-3"></i><span>Change Password</span>
                         </a>
                     </li>

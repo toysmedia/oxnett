@@ -175,6 +175,38 @@ class MikrotikScriptService
         $lines[] = ":local e \" profile=ovpn-mgmt disabled=no\"";
         $lines[] = ":local full (\"/interface ovpn-client add \" . \$a . \$b . \$c . \$d . \$e)";
         $lines[] = ":execute script=\$full";
+        $lines[] = "";
+
+        // Enable RouterOS REST API so testConnection() can reach the router
+        $lines[] = "# Enable REST API";
+        $lines[] = "/ip service set www port=80 disabled=no";
+        $lines[] = "";
+
+        // Phase 1 callback — register router with billing server
+        $callbackSecret = config('app.router_callback_secret', '');
+        $lines[] = "# Callback — register with billing server (phase 1)";
+        $lines[] = ":delay 5s";
+        $lines[] = ":local wanIp \"\"";
+        $lines[] = ":do { :set wanIp [/ip address get [find interface=[/ip route get [find dst-address=0.0.0.0/0] gateway]] address] } on-error={}";
+        $lines[] = ":do { :set wanIp [:pick \$wanIp 0 [:find \$wanIp \"/\"]] } on-error={}";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-callback\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&wan_ip=\$wanIp&phase=1&secret={$callbackSecret}\" keep-result=no } on-error={}";
+        $lines[] = "";
+
+        // Heartbeat scheduler — reports VPN IP to billing server every 5 minutes
+        // The on-event script is a single RouterOS script string stored in the scheduler.
+        // Inside the outer on-event="..." double-quoted string:
+        //   \" → stored as "   and   \$ → stored as $ (variable evaluated at runtime)
+        $hb  = ':local v \\"\\"; ';
+        $hb .= ':do { :set v [/ip address get [find interface=ovpn-mgmt] address]; ';
+        $hb .= ':set v [:pick \\$v 0 [:find \\$v \\"/\\"]] } on-error={}; ';
+        $hb .= ':do { /tool fetch url=\\"https://' . $billingDomain . '/api/router-heartbeat\\" ';
+        $hb .= 'http-method=post ';
+        $hb .= 'http-header-field=\\"Content-Type: application/x-www-form-urlencoded\\" ';
+        $hb .= 'http-data=\\"router_name=' . $routerName . '&vpn_ip=\\$v&secret=' . $callbackSecret . '\\" ';
+        $hb .= 'keep-result=no } on-error={}';
+        $lines[] = "# Heartbeat scheduler — reports VPN IP to billing server every 5 min";
+        $lines[] = ":do { /system scheduler remove [find name=billing-heartbeat] } on-error={}";
+        $lines[] = '/system scheduler add name=billing-heartbeat interval=5m start-time=startup on-event="' . $hb . '"';
 
         return implode("\n", $lines);
     }
@@ -189,6 +221,9 @@ class MikrotikScriptService
         $poolRange     = $this->s($router->pppoe_pool_range     ?? '19.225.0.1-19.225.255.254');
         $gatewayIp     = $this->s($router->pppoe_gateway_ip     ?? '19.225.0.1');
         $radiusSecret  = $this->s($router->radius_secret        ?? '');
+        $billingDomain = $this->s($router->billing_domain       ?? config('app.url', ''));
+        $routerName    = $this->s($router->name                 ?? 'MikroTik');
+        $callbackSecret = config('app.router_callback_secret', '');
 
         $lines = [];
 
@@ -225,6 +260,11 @@ class MikrotikScriptService
         // PPP AAA
         $lines[] = "# PPP AAA";
         $lines[] = "/ppp aaa set use-radius=yes interim-update=00:05:50 accounting=yes";
+        $lines[] = "";
+
+        // Phase 2 complete callback
+        $lines[] = "# Callback — phase 2 complete (PPPoE)";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&phase=2&secret={$callbackSecret}\" keep-result=no } on-error={}";
 
         return implode("\n", $lines);
     }
@@ -235,14 +275,16 @@ class MikrotikScriptService
 
     private function generateSection3(Router $router): string
     {
-        $bridgeName    = $this->s($router->hotspot_bridge_name  ?? 'hotspot_bridge');
-        $poolRange     = $this->s($router->hotspot_pool_range   ?? '11.220.0.1-11.220.255.254');
-        $gatewayIp     = $this->s($router->hotspot_gateway_ip   ?? '11.220.0.1');
-        $prefix        = (int) ($router->hotspot_prefix         ?? 16);
-        $networkAddr   = $this->networkAddress($router->hotspot_gateway_ip ?? '11.220.0.1', $prefix);
-        $billingDomain = $this->s($router->billing_domain       ?? config('app.url', ''));
-        $refCode       = $this->s($router->ref_code             ?? '');
-        $billingVpnIp  = $this->s($this->billingVpnIp($router));
+        $bridgeName     = $this->s($router->hotspot_bridge_name  ?? 'hotspot_bridge');
+        $poolRange      = $this->s($router->hotspot_pool_range   ?? '11.220.0.1-11.220.255.254');
+        $gatewayIp      = $this->s($router->hotspot_gateway_ip   ?? '11.220.0.1');
+        $prefix         = (int) ($router->hotspot_prefix         ?? 16);
+        $networkAddr    = $this->networkAddress($router->hotspot_gateway_ip ?? '11.220.0.1', $prefix);
+        $billingDomain  = $this->s($router->billing_domain       ?? config('app.url', ''));
+        $refCode        = $this->s($router->ref_code             ?? '');
+        $billingVpnIp   = $this->s($this->billingVpnIp($router));
+        $routerName     = $this->s($router->name                 ?? 'MikroTik');
+        $callbackSecret = config('app.router_callback_secret', '');
 
         $lines = [];
 
@@ -302,6 +344,11 @@ class MikrotikScriptService
         $lines[] = "# Walled Garden";
         $lines[] = ":do { /ip hotspot walled-garden ip remove [find dst-address={$billingVpnIp}] } on-error={}";
         $lines[] = "/ip hotspot walled-garden ip add dst-address={$billingVpnIp} action=accept";
+        $lines[] = "";
+
+        // Phase 3 complete callback
+        $lines[] = "# Callback — phase 3 complete (Hotspot)";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&phase=3&secret={$callbackSecret}\" keep-result=no } on-error={}";
 
         return implode("\n", $lines);
     }
@@ -322,6 +369,8 @@ class MikrotikScriptService
         $billingDomain   = $this->s($router->billing_domain      ?? config('app.url', ''));
         $refCode         = $this->s($router->ref_code            ?? '');
         $billingVpnIp    = $this->s($this->billingVpnIp($router));
+        $routerName      = $this->s($router->name                ?? 'MikroTik');
+        $callbackSecret  = config('app.router_callback_secret', '');
 
         $lines = [];
 
@@ -408,6 +457,11 @@ class MikrotikScriptService
         $lines[] = "# Walled Garden";
         $lines[] = ":do { /ip hotspot walled-garden ip remove [find dst-address={$billingVpnIp}] } on-error={}";
         $lines[] = "/ip hotspot walled-garden ip add dst-address={$billingVpnIp} action=accept";
+        $lines[] = "";
+
+        // Phase 3 complete callback
+        $lines[] = "# Callback — phase 3 complete (Combined)";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&phase=3&secret={$callbackSecret}\" keep-result=no } on-error={}";
 
         return implode("\n", $lines);
     }

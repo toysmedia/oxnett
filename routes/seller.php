@@ -27,7 +27,7 @@ Route::middleware(['is_installed'])->group(function () {
         Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/update', 'update')->name('update');
-            Route::get('/change-password', 'showChangePasswordForm')->name('change_password');
+            Route::get('/change-password', 'showChangePasswordForm')->name('change_password_form');
             Route::post('/change-password', 'changePassword')->name('change_password');
         });
 
