@@ -183,13 +183,15 @@ class MikrotikScriptService
         $lines[] = "";
 
         // Phase 1 callback — register router with billing server
-        $callbackSecret = config('app.router_callback_secret', '');
+        $callbackSecret    = config('app.router_callback_secret', '');
+        $routerNameUrl     = urlencode($router->name ?? 'MikroTik');
+        $callbackSecretUrl = urlencode($callbackSecret);
         $lines[] = "# Callback — register with billing server (phase 1)";
         $lines[] = ":delay 5s";
         $lines[] = ":local wanIp \"\"";
         $lines[] = ":do { :set wanIp [/ip address get [find interface=[/ip route get [find dst-address=0.0.0.0/0] gateway]] address] } on-error={}";
         $lines[] = ":do { :set wanIp [:pick \$wanIp 0 [:find \$wanIp \"/\"]] } on-error={}";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-callback\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&wan_ip=\$wanIp&phase=1&secret={$callbackSecret}\" keep-result=no } on-error={}";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-callback\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerNameUrl}&wan_ip=\$wanIp&phase=1&secret={$callbackSecretUrl}\" keep-result=no } on-error={}";
         $lines[] = "";
 
         // Heartbeat scheduler — reports VPN IP to billing server every 5 minutes
@@ -202,7 +204,7 @@ class MikrotikScriptService
         $hb .= ':do { /tool fetch url=\\"https://' . $billingDomain . '/api/router-heartbeat\\" ';
         $hb .= 'http-method=post ';
         $hb .= 'http-header-field=\\"Content-Type: application/x-www-form-urlencoded\\" ';
-        $hb .= 'http-data=\\"router_name=' . $routerName . '&vpn_ip=\\$v&secret=' . $callbackSecret . '\\" ';
+        $hb .= 'http-data=\\"router_name=' . $routerNameUrl . '&vpn_ip=\\$v&secret=' . $callbackSecretUrl . '\\" ';
         $hb .= 'keep-result=no } on-error={}';
         $lines[] = "# Heartbeat scheduler — reports VPN IP to billing server every 5 min";
         $lines[] = ":do { /system scheduler remove [find name=billing-heartbeat] } on-error={}";
@@ -223,7 +225,9 @@ class MikrotikScriptService
         $radiusSecret  = $this->s($router->radius_secret        ?? '');
         $billingDomain = $this->s($router->billing_domain       ?? config('app.url', ''));
         $routerName    = $this->s($router->name                 ?? 'MikroTik');
-        $callbackSecret = config('app.router_callback_secret', '');
+        $callbackSecret    = config('app.router_callback_secret', '');
+        $routerNameUrl     = urlencode($router->name ?? 'MikroTik');
+        $callbackSecretUrl = urlencode($callbackSecret);
 
         $lines = [];
 
@@ -264,7 +268,7 @@ class MikrotikScriptService
 
         // Phase 2 complete callback
         $lines[] = "# Callback — phase 2 complete (PPPoE)";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&phase=2&secret={$callbackSecret}\" keep-result=no } on-error={}";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerNameUrl}&phase=2&secret={$callbackSecretUrl}\" keep-result=no } on-error={}";
 
         return implode("\n", $lines);
     }
@@ -284,7 +288,9 @@ class MikrotikScriptService
         $refCode        = $this->s($router->ref_code             ?? '');
         $billingVpnIp   = $this->s($this->billingVpnIp($router));
         $routerName     = $this->s($router->name                 ?? 'MikroTik');
-        $callbackSecret = config('app.router_callback_secret', '');
+        $callbackSecret    = config('app.router_callback_secret', '');
+        $routerNameUrl     = urlencode($router->name ?? 'MikroTik');
+        $callbackSecretUrl = urlencode($callbackSecret);
 
         $lines = [];
 
@@ -348,7 +354,7 @@ class MikrotikScriptService
 
         // Phase 3 complete callback
         $lines[] = "# Callback — phase 3 complete (Hotspot)";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&phase=3&secret={$callbackSecret}\" keep-result=no } on-error={}";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerNameUrl}&phase=3&secret={$callbackSecretUrl}\" keep-result=no } on-error={}";
 
         return implode("\n", $lines);
     }
@@ -370,7 +376,9 @@ class MikrotikScriptService
         $refCode         = $this->s($router->ref_code            ?? '');
         $billingVpnIp    = $this->s($this->billingVpnIp($router));
         $routerName      = $this->s($router->name                ?? 'MikroTik');
-        $callbackSecret  = config('app.router_callback_secret', '');
+        $callbackSecret    = config('app.router_callback_secret', '');
+        $routerNameUrl     = urlencode($router->name ?? 'MikroTik');
+        $callbackSecretUrl = urlencode($callbackSecret);
 
         $lines = [];
 
@@ -461,7 +469,7 @@ class MikrotikScriptService
 
         // Phase 3 complete callback
         $lines[] = "# Callback — phase 3 complete (Combined)";
-        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerName}&phase=3&secret={$callbackSecret}\" keep-result=no } on-error={}";
+        $lines[] = ":do { /tool fetch url=\"https://{$billingDomain}/api/router-phase-complete\" http-method=post http-header-field=\"Content-Type: application/x-www-form-urlencoded\" http-data=\"router_name={$routerNameUrl}&phase=3&secret={$callbackSecretUrl}\" keep-result=no } on-error={}";
 
         return implode("\n", $lines);
     }
