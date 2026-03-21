@@ -183,6 +183,48 @@ class RouterController extends Controller
         );
     }
 
+    public function serveHotspotFileByRefCode(string $refCode, string $file)
+    {
+        $router = Router::where('ref_code', $refCode)
+                        ->where('is_active', true)
+                        ->firstOrFail();
+
+        return $this->serveHotspotFile($router, $file);
+    }
+
+    public function serveCertFile(string $refCode, string $file)
+    {
+        $allowedFiles = ['ca.crt', 'router.crt', 'router.key'];
+
+        if (!in_array($file, $allowedFiles, true)) {
+            abort(404);
+        }
+
+        $router = Router::where('ref_code', $refCode)
+                        ->where('is_active', true)
+                        ->firstOrFail();
+
+        if ($file === 'ca.crt') {
+            $filename = basename($router->ca_cert_filename ?? 'ca.crt');
+        } elseif ($file === 'router.crt') {
+            $filename = basename($router->router_cert_filename ?? 'router.crt');
+        } else {
+            // router.key — derive from the cert filename
+            $certFilename = $router->router_cert_filename ?? 'router.crt';
+            $filename = basename(pathinfo($certFilename, PATHINFO_FILENAME) . '.key');
+        }
+
+        $path = storage_path('app/certs/' . $filename);
+
+        if (!is_file($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'application/octet-stream',
+        ]);
+    }
+
     public function downloadHotspotFiles(Router $router)
     {
         $tmpDir  = sys_get_temp_dir();

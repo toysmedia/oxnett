@@ -64,6 +64,18 @@ Route::get('/hotspot-files/{router}/{file}', [\App\Http\Controllers\Admin\Router
     ->where('file', 'login\.html|alogin\.html|status\.html')
     ->name('api.hotspot_file');
 
+// Hotspot files by ref_code (fetched by MikroTik script via /tool fetch)
+Route::middleware('throttle:30,1')
+    ->get('/router-hotspot/{ref_code}/{file}', [\App\Http\Controllers\Admin\RouterController::class, 'serveHotspotFileByRefCode'])
+    ->where('file', 'login\.html|alogin\.html|status\.html')
+    ->name('api.hotspot_file_by_ref');
+
+// Router cert files (fetched by MikroTik script via /tool fetch, authenticated by ref_code)
+Route::middleware('throttle:10,1')
+    ->get('/router-certs/{ref_code}/{file}', [\App\Http\Controllers\Admin\RouterController::class, 'serveCertFile'])
+    ->where('file', 'ca\.crt|router\.crt|router\.key')
+    ->name('api.router_cert');
+
 // AI Assistant API (public, rate-limited)
 Route::prefix('ai')->group(function () {
     Route::post('/chat', [AiAssistantController::class, 'chat'])->middleware('throttle:20,1');
