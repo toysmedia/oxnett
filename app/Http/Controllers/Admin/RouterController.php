@@ -7,11 +7,9 @@ use App\Models\Nas;
 use App\Models\AuditLog;
 use App\Models\IspSetting;
 use App\Services\MikrotikScriptService;
-use App\Services\WireGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use ZipArchive;
 
 class RouterController extends Controller
@@ -47,6 +45,14 @@ class RouterController extends Controller
         $validated['billing_domain']     = IspSetting::getValue('billing_domain', '');
         $validated['wan_ip']             = null;
         $validated['is_active']          = $request->boolean('is_active', true);
+        $validated['service_mode']       = 'pppoe_hotspot';
+        $validated['openvpn_port']       = config('openvpn.port', 443);
+        $validated['pppoe_bridge_name']  = 'pppoe_bridge';
+        $validated['hotspot_bridge_name'] = 'hotspot_bridge';
+        $validated['hotspot_gateway_ip'] = '11.220.0.1';
+        $validated['hotspot_prefix']     = 16;
+        $validated['pppoe_gateway_ip']   = '19.225.0.1';
+        $validated['timezone']           = 'Africa/Nairobi';
 
         $router = Router::create($validated);
 
@@ -106,18 +112,6 @@ class RouterController extends Controller
         $nasIp = $router->vpn_ip ?: $router->wan_ip;
         if ($nasIp) {
             Nas::where('nasname', $nasIp)->delete();
-        }
-        // Remove WireGuard peer from server if key is known
-        if ($router->wg_public_key) {
-            try {
-                app(WireGuardService::class)->removePeer($router->wg_public_key);
-            } catch (\Throwable $e) {
-                Log::error('RouterController: failed to remove WireGuard peer on delete', [
-                    'router_id'  => $router->id,
-                    'public_key' => $router->wg_public_key,
-                    'error'      => $e->getMessage(),
-                ]);
-            }
         }
         $router->delete();
         return redirect()->route('admin.isp.routers.index')->with('success', 'Router deleted.');
