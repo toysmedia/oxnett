@@ -56,11 +56,12 @@ class RouterController extends Controller
 
         $router = Router::create($validated);
 
-        $wgOctet   = (($router->id % 253) + 2);
         $poolOctet = (($router->id - 1) % 254) + 1;
         $router->update([
             'ref_code'           => 'RTR-' . str_pad($router->id, 3, '0', STR_PAD_LEFT),
-            'vpn_ip'             => '10.255.255.' . $wgOctet,
+            // vpn_ip is left null; it will be populated by the OpenVPN server
+            // via the router callback endpoint once the tunnel is established.
+            'vpn_ip'             => null,
             'pppoe_pool_range'   => "10.10.{$poolOctet}.1-10.10.{$poolOctet}.254",
             'hotspot_pool_range' => "10.20.{$poolOctet}.1-10.20.{$poolOctet}.254",
         ]);
@@ -232,7 +233,7 @@ class RouterController extends Controller
         $nasIp = $router->vpn_ip ?: $router->wan_ip;
         $result['radius_configured'] = $nasIp ? Nas::where('nasname', $nasIp)->exists() : false;
 
-        // Prefer VPN IP (WireGuard tunnel) over WAN IP
+        // Prefer VPN IP (OpenVPN tunnel) over WAN IP
         $ip      = $router->vpn_ip ?: $router->wan_ip;
         // RouterOS REST API runs on port 80 by default but we enable it on 8728
         // The script sets: /ip service set api port=8728
