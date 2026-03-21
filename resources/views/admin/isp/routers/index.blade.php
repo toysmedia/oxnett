@@ -53,7 +53,7 @@
                                 <th>VERSION</th>
                                 <th>WAN IP</th>
                                 <th>VPN IP</th>
-                                <th>WG KEY</th>
+                                <th>TUNNEL</th>
                                 <th>STATUS</th>
                                 <th>WINBOX / MAC</th>
                                 <th class="text-center">Actions</th>
@@ -102,12 +102,12 @@
                                     @endif
                                 </td>
 
-                                {{-- WG KEY --}}
+                                {{-- TUNNEL — OpenVPN connected indicator --}}
                                 <td class="text-center">
-                                    @if($router->wg_public_key)
-                                        <i class="bx bx-lock text-success fs-5" title="{{ $router->wg_public_key }}"></i>
+                                    @if($router->vpn_ip)
+                                        <i class="bx bx-lock text-success fs-5" title="OpenVPN tunnel active ({{ $router->vpn_ip }})"></i>
                                     @else
-                                        <i class="bx bx-lock-open text-secondary fs-5" title="WireGuard key not yet registered"></i>
+                                        <i class="bx bx-lock-open text-secondary fs-5" title="OpenVPN tunnel not yet connected"></i>
                                     @endif
                                 </td>
 
