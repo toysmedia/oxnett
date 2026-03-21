@@ -5,7 +5,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Router;
 use App\Models\Nas;
 use App\Models\AuditLog;
-use App\Services\WireGuardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -18,7 +17,6 @@ class RouterCallbackController extends Controller
             'wan_ip'       => 'nullable|ip',
             'vpn_ip'       => 'nullable|ip',
             'radius_secret' => 'nullable|string',
-            'wg_public_key' => 'nullable|string|max:255',
             'phase'        => 'nullable|integer|min:0|max:3',
         ]);
 
@@ -35,7 +33,7 @@ class RouterCallbackController extends Controller
 
         $old = $router->toArray();
 
-        // Update router with detected IPs and WireGuard public key
+        // Update router with detected IPs
         $updates = ['last_heartbeat_at' => now()];
         if (!empty($data['wan_ip'])) {
             $updates['wan_ip'] = $data['wan_ip'];
@@ -43,36 +41,12 @@ class RouterCallbackController extends Controller
         if (!empty($data['vpn_ip'])) {
             $updates['vpn_ip'] = $data['vpn_ip'];
         }
-        $newWgKey = !empty($data['wg_public_key']) ? $data['wg_public_key'] : null;
-        if ($newWgKey) {
-            $updates['wg_public_key'] = $newWgKey;
-        }
         // Advance provision_phase only forward, never backward
         if (!empty($data['phase']) && (int)$data['phase'] > (int)$router->provision_phase) {
             $updates['provision_phase'] = (int)$data['phase'];
         }
 
         $router->update($updates);
-
-        // Auto-register WireGuard peer on the server when we receive a public key.
-        // Use the router's authoritative vpn_ip from the DB (set by the server on creation),
-        // not the client-provided value, to prevent IP spoofing.
-        $wgSuccess = false;
-        if ($newWgKey) {
-            $vpnIp = $router->fresh()->vpn_ip;
-            if ($vpnIp && filter_var($vpnIp, FILTER_VALIDATE_IP)) {
-                try {
-                    $wgSuccess = app(WireGuardService::class)->addPeer($newWgKey, "{$vpnIp}/32");
-                } catch (\Throwable $e) {
-                    Log::error('Router callback: failed to register WireGuard peer', [
-                        'router_id'  => $router->id,
-                        'public_key' => $newWgKey,
-                        'vpn_ip'     => $vpnIp,
-                        'error'      => $e->getMessage(),
-                    ]);
-                }
-            }
-        }
 
         // Sync NAS table for FreeRADIUS — use vpn_ip (packets arrive from VPN), fallback to wan_ip
         $nasIp = $router->vpn_ip ?: $router->wan_ip;
@@ -103,7 +77,6 @@ class RouterCallbackController extends Controller
             'message'             => 'Router registered successfully',
             'router_id'           => $router->id,
             'provision_phase'     => $router->provision_phase,
-            'wg_peer_registered'  => $wgSuccess,
         ]);
     }
 
