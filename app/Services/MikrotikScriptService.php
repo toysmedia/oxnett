@@ -126,7 +126,17 @@ class MikrotikScriptService
 
         // 6. NTP Client
         $lines[] = "# 6. NTP Client";
-        $lines[] = "/system ntp client set enabled=yes primary-ntp=216.239.35.8";
+        $ntpServer = '216.239.35.8';
+        $rosVersion = $router->routeros_version ?? '';
+        $rosMajor   = $rosVersion !== '' ? (int) explode('.', $rosVersion)[0] : 0;
+        if ($rosMajor === 6) {
+            // RouterOS 6.x uses the legacy primary-ntp parameter
+            $lines[] = "/system ntp client set enabled=yes primary-ntp={$ntpServer}";
+        } else {
+            // RouterOS 7.x (default): primary-ntp was removed
+            $lines[] = "/system ntp client set enabled=yes";
+            $lines[] = "/system ntp client servers add address={$ntpServer}";
+        }
         $lines[] = "";
 
         // 7. Firewall Baseline
@@ -146,10 +156,7 @@ class MikrotikScriptService
         // 9. OpenVPN Tunnel
         $lines[] = "# 9. OpenVPN Tunnel";
         $lines[] = "/ppp profile add name=ovpn-mgmt change-tcp-mss=yes use-encryption=yes";
-        $lines[] = "/interface ovpn-client add name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort} \\";
-        $lines[] = "    user=\"{$mgmtUserName}\" password=\"{$radiusSecret}\" \\";
-        $lines[] = "    certificate={$routerCertName} ca-certificate={$caCertName} \\";
-        $lines[] = "    auth=sha1 cipher=aes256 use-peer-dns=no profile=ovpn-mgmt disabled=no";
+        $lines[] = "/interface ovpn-client add name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort} user=\"{$mgmtUserName}\" password=\"{$radiusSecret}\" certificate={$routerCertName} ca-certificate={$caCertName} auth=sha1 cipher=aes256 use-peer-dns=no profile=ovpn-mgmt disabled=no";
 
         return implode("\n", $lines);
     }
@@ -184,16 +191,13 @@ class MikrotikScriptService
 
         // PPP Profile
         $lines[] = "# PPP Profile";
-        $lines[] = "/ppp profile add name=pppoe-profile dns-server=8.8.8.8,8.8.4.4 \\";
-        $lines[] = "    local-address={$gatewayIp} remote-address=pppoe_pool use-encryption=yes";
+        $lines[] = "/ppp profile add name=pppoe-profile dns-server=8.8.8.8,8.8.4.4 local-address={$gatewayIp} remote-address=pppoe_pool use-encryption=yes";
         $lines[] = "";
 
         // PPPoE Server
         $lines[] = "# PPPoE Server";
         $lines[] = "# PAP-only is deliberate: credentials are already protected by the OpenVPN tunnel.";
-        $lines[] = "/interface pppoe-server server add service-name=pppoe interface={$bridgeName} \\";
-        $lines[] = "    authentication=pap one-session-per-host=yes keepalive-timeout=10 \\";
-        $lines[] = "    default-profile=pppoe-profile disabled=no";
+        $lines[] = "/interface pppoe-server server add service-name=pppoe interface={$bridgeName} authentication=pap one-session-per-host=yes keepalive-timeout=10 default-profile=pppoe-profile disabled=no";
         $lines[] = "";
 
         // PPP AAA
@@ -248,21 +252,20 @@ class MikrotikScriptService
 
         // Hotspot Profile
         $lines[] = "# Hotspot Profile";
-        $lines[] = "/ip hotspot profile add name=hs-profile \\";
-        $lines[] = "    login-by=cookie,https,http-pap,mac-cookie \\";
-        $lines[] = "    use-radius=yes radius-interim-update=00:06:30";
+        $lines[] = "/ip hotspot profile add name=hs-profile login-by=cookie,https,http-pap,mac-cookie use-radius=yes radius-interim-update=00:06:30";
         $lines[] = "";
 
         // Hotspot Server
         $lines[] = "# Hotspot Server";
-        $lines[] = "/ip hotspot add name=hs-server interface={$bridgeName} profile=hs-profile \\";
-        $lines[] = "    addresses-per-mac=3 idle-timeout=1m disabled=no";
+        $lines[] = "/ip hotspot add name=hs-server interface={$bridgeName} profile=hs-profile addresses-per-mac=3 idle-timeout=1m disabled=no";
         $lines[] = "";
 
         // Fetch hotspot files from billing API
         $lines[] = "# Hotspot Files";
         $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/login.html\" dst-path=hotspot/login.html";
+        $lines[] = ":delay 2s";
         $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/alogin.html\" dst-path=hotspot/alogin.html";
+        $lines[] = ":delay 2s";
         $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/status.html\" dst-path=hotspot/status.html";
         $lines[] = "";
 
@@ -316,16 +319,13 @@ class MikrotikScriptService
 
         // PPP Profile
         $lines[] = "# PPP Profile";
-        $lines[] = "/ppp profile add name=pppoe-profile dns-server=8.8.8.8,8.8.4.4 \\";
-        $lines[] = "    local-address={$pppoeGateway} remote-address=pppoe_pool use-encryption=yes";
+        $lines[] = "/ppp profile add name=pppoe-profile dns-server=8.8.8.8,8.8.4.4 local-address={$pppoeGateway} remote-address=pppoe_pool use-encryption=yes";
         $lines[] = "";
 
         // PPPoE Server
         $lines[] = "# PPPoE Server";
         $lines[] = "# PAP-only is deliberate: credentials are already protected by the OpenVPN tunnel.";
-        $lines[] = "/interface pppoe-server server add service-name=pppoe interface={$bridgeName} \\";
-        $lines[] = "    authentication=pap one-session-per-host=yes keepalive-timeout=10 \\";
-        $lines[] = "    default-profile=pppoe-profile disabled=no";
+        $lines[] = "/interface pppoe-server server add service-name=pppoe interface={$bridgeName} authentication=pap one-session-per-host=yes keepalive-timeout=10 default-profile=pppoe-profile disabled=no";
         $lines[] = "";
 
         // PPP AAA
@@ -346,21 +346,20 @@ class MikrotikScriptService
 
         // Hotspot Profile
         $lines[] = "# Hotspot Profile";
-        $lines[] = "/ip hotspot profile add name=hs-profile \\";
-        $lines[] = "    login-by=cookie,https,http-pap,mac-cookie \\";
-        $lines[] = "    use-radius=yes radius-interim-update=00:06:30";
+        $lines[] = "/ip hotspot profile add name=hs-profile login-by=cookie,https,http-pap,mac-cookie use-radius=yes radius-interim-update=00:06:30";
         $lines[] = "";
 
         // Hotspot Server
         $lines[] = "# Hotspot Server";
-        $lines[] = "/ip hotspot add name=hs-server interface={$bridgeName} profile=hs-profile \\";
-        $lines[] = "    addresses-per-mac=3 idle-timeout=1m disabled=no";
+        $lines[] = "/ip hotspot add name=hs-server interface={$bridgeName} profile=hs-profile addresses-per-mac=3 idle-timeout=1m disabled=no";
         $lines[] = "";
 
         // Fetch hotspot files
         $lines[] = "# Hotspot Files";
         $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/login.html\" dst-path=hotspot/login.html";
+        $lines[] = ":delay 2s";
         $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/alogin.html\" dst-path=hotspot/alogin.html";
+        $lines[] = ":delay 2s";
         $lines[] = "/tool fetch url=\"https://{$billingDomain}/api/router-hotspot/{$refCode}/status.html\" dst-path=hotspot/status.html";
         $lines[] = "";
 
