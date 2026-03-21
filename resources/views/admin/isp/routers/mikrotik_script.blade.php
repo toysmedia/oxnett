@@ -79,7 +79,7 @@
 <div class="toolbar">
     <div>
         <h1>&#128194; MikroTik Script &mdash; {{ $router->name }}</h1>
-        <div class="meta">Generated: {{ now()->format('d M Y H:i:s') }} &nbsp;|&nbsp; WAN: {{ $router->wan_ip }} &nbsp;|&nbsp; Phase: {{ $router->provision_phase ?? 0 }}/3</div>
+        <div class="meta">Generated: {{ now()->format('d M Y H:i:s') }} &nbsp;|&nbsp; WAN: {{ $router->wan_ip }} &nbsp;|&nbsp; Phase: {{ $router->provision_phase ?? 0 }}</div>
     </div>
     <div class="btn-group">
         <a href="{{ url()->previous() }}" class="btn btn-back">&#8592; Back</a>
