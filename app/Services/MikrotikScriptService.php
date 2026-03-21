@@ -164,7 +164,11 @@ class MikrotikScriptService
         $lines[] = ":do { /ppp profile remove [find name=ovpn-mgmt] } on-error={}";
         $lines[] = "/ppp profile add name=ovpn-mgmt change-tcp-mss=yes use-encryption=yes";
         $lines[] = ":do { /interface ovpn-client remove [find name=ovpn-mgmt] } on-error={}";
-        $lines[] = "/interface ovpn-client add name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort} user=\"{$mgmtUserName}\" password=\"{$radiusSecret}\" certificate={$routerCertName} ca-certificate={$caCertName} auth=sha1 cipher=aes256 use-peer-dns=no profile=ovpn-mgmt disabled=no";
+        $lines[] = "/interface ovpn-client add name=ovpn-mgmt connect-to={$billingPublicIp} port={$openvpnPort} profile=ovpn-mgmt disabled=yes";
+        $lines[] = "/interface ovpn-client set ovpn-mgmt user=\"{$mgmtUserName}\" password=\"{$radiusSecret}\"";
+        $lines[] = "/interface ovpn-client set ovpn-mgmt certificate={$routerCertName} ca-certificate={$caCertName}";
+        $lines[] = "/interface ovpn-client set ovpn-mgmt auth=sha1 cipher=aes256 use-peer-dns=no";
+        $lines[] = "/interface ovpn-client set ovpn-mgmt disabled=no";
 
         return implode("\n", $lines);
     }
